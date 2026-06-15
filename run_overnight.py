@@ -1,51 +1,53 @@
 """Autonomous ~10h small-data fine-tuning OPTIMIZATION study for the Korean
-card-news layout detector (YOLOv8). Time-budgeted: runs a prioritized queue of
-experiments, then k-fold + seed repeats to fill the window, stopping near the
-budget. Robust: every run is isolated in try/except; results + a status file +
-a chart are written and git-committed after EACH run so progress is never lost.
+card-news layout detector (YOLOv8). Time-budgeted queue of experiments + seed
+repeats + k-fold CV. ROBUST: each experiment runs in its OWN subprocess
+(train_one.py) so a crash/OOM can't kill the suite; the orchestrator itself
+never imports torch/CUDA (only one CUDA process at a time). Results + status +
+chart are written and git-committed after EACH run.
 
 Launch (background):
-  $env:GH_TOKEN="..."   # optional, for auto-push; omit to commit locally only
-  python run_overnight.py
+  $env:PYTHONUTF8="1"; $env:GH_TOKEN="..."(optional); python run_overnight.py
 """
 from __future__ import annotations
-import os, sys, time, csv, glob, json, shutil, subprocess, traceback, random
+import os, sys, time, glob, json, shutil, subprocess, traceback, random
 
 os.environ.setdefault("PYTHONUTF8", "1")
 import pandas as pd
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-from ultralytics import YOLO
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 RESULTS = os.path.join(ROOT, "results")
 RUNS = os.path.join(ROOT, "runs")
 FOLDS = os.path.join(ROOT, "folds")
 DATA = os.path.join(ROOT, "dataset.yaml")
+PY = sys.executable                       # the venv python running this script
+TRAIN_ONE = os.path.join(ROOT, "train_one.py")
 for d in (RESULTS, RUNS, FOLDS):
     os.makedirs(d, exist_ok=True)
 
 START = time.time()
-TIME_BUDGET = 9.5 * 3600          # stop launching new runs after ~9.5h
+TIME_BUDGET = 9.5 * 3600
+RUN_TIMEOUT = 90 * 60                      # per-experiment hard cap
 LOG = os.path.join(ROOT, "overnight.log")
 MASTER_CSV = os.path.join(RESULTS, "ablation.csv")
 ALL_ROWS: list[dict] = []
 
+# workers=0 -> no DataLoader subprocess spawning (Windows paging-file safe).
 DEFAULTS = dict(imgsz=640, batch=8, epochs=150, freeze=10, optimizer="auto",
-                lr0=0.01, amp=False, device=0, workers=2, seed=0, plots=True,
+                lr0=0.01, amp=False, device=0, workers=0, seed=0, plots=True,
                 verbose=False, exist_ok=True, project=RUNS)
 
-# Korean-text aug note: horizontal flip mirrors Hangul -> fliplr=0 is correct here.
-AUG_NONE = dict(mosaic=0.0, close_mosaic=0, hsv_h=0, hsv_s=0, hsv_v=0,
-                degrees=0, translate=0, scale=0, shear=0, fliplr=0.0,
-                flipud=0.0, erasing=0.0, mixup=0.0, copy_paste=0.0)
+# Korean text: horizontal flip mirrors Hangul -> fliplr=0 is the correct default.
+AUG_NONE = dict(mosaic=0.0, close_mosaic=0, hsv_h=0, hsv_s=0, hsv_v=0, degrees=0,
+                translate=0, scale=0, shear=0, fliplr=0.0, flipud=0.0,
+                erasing=0.0, mixup=0.0, copy_paste=0.0)
 AUG_HEAVY = dict(mosaic=1.0, mixup=0.15, copy_paste=0.1, degrees=5,
-                 translate=0.1, scale=0.5, fliplr=0.0)          # no mirror
+                 translate=0.1, scale=0.5, fliplr=0.0)
 AUG_CARD = dict(mosaic=0.5, mixup=0.0, fliplr=0.0, hsv_h=0.01, hsv_s=0.3,
                 hsv_v=0.3, translate=0.05, scale=0.3, erasing=0.2)
 
-# Prioritized experiment queue (most informative first).
 EXPERIMENTS = [
     dict(name="e01_baseline_n_freeze10", model="yolov8n.pt"),
     dict(name="e02_n_freeze0",           model="yolov8n.pt", freeze=0),
@@ -54,7 +56,7 @@ EXPERIMENTS = [
     dict(name="e05_aug_none",            model="yolov8n.pt", **AUG_NONE),
     dict(name="e06_aug_heavy",           model="yolov8n.pt", **AUG_HEAVY),
     dict(name="e07_aug_card",            model="yolov8n.pt", **AUG_CARD),
-    dict(name="e08_fliplr_on_BAD",       model="yolov8n.pt", fliplr=0.5),  # show mirror hurts
+    dict(name="e08_fliplr_on_BAD",       model="yolov8n.pt", fliplr=0.5),
     dict(name="e09_imgsz512",            model="yolov8n.pt", imgsz=512),
     dict(name="e10_imgsz768_b4",         model="yolov8n.pt", imgsz=768, batch=4),
     dict(name="e11_adamw",               model="yolov8n.pt", optimizer="AdamW", lr0=0.001),
@@ -63,7 +65,6 @@ EXPERIMENTS = [
     dict(name="e14_yolov8s_freeze0",     model="yolov8s.pt", batch=4, freeze=0),
     dict(name="e15_long300_card",        model="yolov8n.pt", epochs=300, **AUG_CARD),
 ]
-# Filler if time remains: seed repeats of the strongest-by-design configs.
 SEED_REPEATS = [
     ("e01_baseline_n_freeze10", dict(model="yolov8n.pt")),
     ("e07_aug_card",            dict(model="yolov8n.pt", **AUG_CARD)),
@@ -73,8 +74,11 @@ SEED_REPEATS = [
 def log(msg: str):
     line = f"[{time.strftime('%H:%M:%S')}][+{int(time.time()-START)}s] {msg}"
     print(line, flush=True)
-    with open(LOG, "a", encoding="utf-8") as fh:
-        fh.write(line + "\n")
+    try:
+        with open(LOG, "a", encoding="utf-8") as fh:
+            fh.write(line + "\n")
+    except Exception:
+        pass
 
 
 def git(*args):
@@ -86,22 +90,21 @@ def git(*args):
 
 
 def commit_push(message: str):
-    git("add", "results", "ABLATION.md", "STATUS.md", "DEV_LOG.md")
+    git("add", "results", "ABLATION.md", "STATUS.md", "DEV_LOG.md", "DONE.md")
     git("-c", "user.email=4mins12@gmail.com", "-c", "user.name=iluv4",
         "commit", "-m", message)
     tok = os.environ.get("GH_TOKEN", "")
     if tok:
-        url = f"https://{tok}@github.com/iluv4/cardnews-cv.git"
         try:
-            subprocess.run(["git", "push", url, "main:main"], cwd=ROOT,
-                           check=False, capture_output=True, text=True, timeout=300)
+            subprocess.run(["git", "push", f"https://{tok}@github.com/iluv4/cardnews-cv.git",
+                            "main:main"], cwd=ROOT, check=False,
+                           capture_output=True, text=True, timeout=300)
         except Exception as e:
             log(f"push failed (token revoked?): {e}")
 
 
 def parse_metrics(save_dir: str) -> dict:
-    csvp = os.path.join(save_dir, "results.csv")
-    df = pd.read_csv(csvp)
+    df = pd.read_csv(os.path.join(save_dir, "results.csv"))
     df.columns = [c.strip() for c in df.columns]
     key = "metrics/mAP50-95(B)"
     best = df.loc[df[key].idxmax()]
@@ -115,88 +118,97 @@ def save_artifacts(name: str, save_dir: str):
     dst = os.path.join(RESULTS, name)
     os.makedirs(dst, exist_ok=True)
     for f in ("results.png", "results.csv", "confusion_matrix.png",
-              "val_batch0_pred.jpg", "val_batch0_labels.jpg",
-              "BoxPR_curve.png", "labels.jpg"):
+              "val_batch0_pred.jpg", "val_batch0_labels.jpg", "BoxPR_curve.png"):
         src = os.path.join(save_dir, f)
         if os.path.exists(src):
             shutil.copy2(src, os.path.join(dst, f))
 
 
+def _fmt(v):
+    return f"{v:.4f}" if isinstance(v, float) else str(v)
+
+
 def write_outputs():
     if not ALL_ROWS:
         return
-    df = pd.DataFrame(ALL_ROWS)
-    df.to_csv(MASTER_CSV, index=False)
-    # markdown table
+    pd.DataFrame(ALL_ROWS).to_csv(MASTER_CSV, index=False)
     cols = ["name", "model", "map50", "map", "precision", "recall",
             "best_epoch", "n_epochs", "minutes", "status"]
-    md = ["# Small-data fine-tuning ablation — Korean card-news detector",
-          "", f"_109 images (train 93 / val 16), YOLOv8, amp=False, RTX 2060._",
-          f"_Updated: +{int((time.time()-START)/60)} min into the run._", "",
-          "| " + " | ".join(cols) + " |",
-          "|" + "|".join(["---"] * len(cols)) + "|"]
-    for r in sorted(ALL_ROWS, key=lambda x: (x.get("map") or -1), reverse=True):
-        md.append("| " + " | ".join(
-            (f"{r.get(c):.4f}" if isinstance(r.get(c), float) else str(r.get(c, "")))
-            for c in cols) + " |")
-    best = max(ALL_ROWS, key=lambda x: (x.get("map") or -1))
-    md += ["", f"**Best so far:** `{best['name']}` — mAP50-95 = {best.get('map'):.4f}, "
-               f"mAP50 = {best.get('map50'):.4f}"]
+    md = ["# Small-data fine-tuning ablation — Korean card-news detector", "",
+          "_109 images (train 93 / val 16), YOLOv8, amp=False, workers=0, RTX 2060._",
+          f"_Updated +{int((time.time()-START)/60)} min into the run._", "",
+          "| " + " | ".join(cols) + " |", "|" + "|".join(["---"]*len(cols)) + "|"]
+    for r in sorted(ALL_ROWS, key=lambda x: (x.get("map") if isinstance(x.get("map"), float) else -1), reverse=True):
+        md.append("| " + " | ".join(_fmt(r.get(c, "")) for c in cols) + " |")
+    ok = [r for r in ALL_ROWS if isinstance(r.get("map"), float)]
+    if ok:
+        b = max(ok, key=lambda x: x["map"])
+        md += ["", f"**Best so far:** `{b['name']}` — mAP50-95 = {b['map']:.4f}, mAP50 = {b['map50']:.4f}"]
     with open(os.path.join(ROOT, "ABLATION.md"), "w", encoding="utf-8") as fh:
         fh.write("\n".join(md))
-    # chart
     try:
-        done = [r for r in ALL_ROWS if isinstance(r.get("map"), float)]
-        done.sort(key=lambda x: x["map"])
-        plt.figure(figsize=(9, max(3, 0.4 * len(done))))
-        plt.barh([r["name"] for r in done], [r["map"] for r in done], color="#3b7")
-        plt.xlabel("mAP50-95"); plt.title("Small-data fine-tuning ablation")
-        plt.tight_layout()
-        plt.savefig(os.path.join(RESULTS, "ablation_chart.png"), dpi=120)
-        plt.close()
+        ok.sort(key=lambda x: x["map"])
+        if ok:
+            plt.figure(figsize=(9, max(3, 0.4*len(ok))))
+            plt.barh([r["name"] for r in ok], [r["map"] for r in ok], color="#3b7")
+            plt.xlabel("mAP50-95"); plt.title("Small-data fine-tuning ablation")
+            plt.tight_layout(); plt.savefig(os.path.join(RESULTS, "ablation_chart.png"), dpi=120)
+            plt.close()
     except Exception as e:
         log(f"chart failed: {e}")
 
 
 def write_status(phase: str):
-    el = time.time() - START
-    s = [f"# Overnight run status", "",
-         f"- elapsed: {el/3600:.2f} h / budget 9.5 h",
+    ok = len([r for r in ALL_ROWS if r.get("status") == "ok"])
+    fail = len([r for r in ALL_ROWS if str(r.get("status", "")).startswith("FAIL")])
+    s = ["# Overnight run status", "",
+         f"- elapsed: {(time.time()-START)/3600:.2f} h / budget 9.5 h",
          f"- phase: {phase}",
-         f"- runs completed: {len([r for r in ALL_ROWS if r.get('status')=='ok'])}",
-         f"- runs failed: {len([r for r in ALL_ROWS if r.get('status','').startswith('FAIL')])}",
-         f"- last update: {time.strftime('%Y-%m-%d %H:%M:%S')}", ""]
-    if ALL_ROWS:
-        b = max(ALL_ROWS, key=lambda x: (x.get('map') or -1))
-        s.append(f"- best: {b['name']} mAP50-95={b.get('map')}")
+         f"- runs ok: {ok} | failed: {fail}",
+         f"- last update: {time.strftime('%Y-%m-%d %H:%M:%S')}"]
+    okrows = [r for r in ALL_ROWS if isinstance(r.get("map"), float)]
+    if okrows:
+        b = max(okrows, key=lambda x: x["map"])
+        s.append(f"- best: {b['name']} mAP50-95={b['map']:.4f}")
     with open(os.path.join(ROOT, "STATUS.md"), "w", encoding="utf-8") as fh:
         fh.write("\n".join(s))
 
 
-def run_one(exp: dict):
+def train_subprocess(name: str, model: str, data: str, cfg: dict) -> str:
+    """Run one training in an isolated process. Returns save_dir."""
+    full = {**cfg, "name": name, "model": model, "data": data}
+    cfgpath = os.path.join(FOLDS, f"_cfg_{name}.json")
+    with open(cfgpath, "w", encoding="utf-8") as fh:
+        json.dump(full, fh)
+    env = dict(os.environ); env["PYTHONUTF8"] = "1"
+    subprocess.run([PY, TRAIN_ONE, cfgpath], cwd=ROOT, env=env,
+                   check=True, timeout=RUN_TIMEOUT)
+    return os.path.join(RUNS, name)
+
+
+def run_one(exp: dict, data: str = DATA):
     name = exp["name"]
     if time.time() - START > TIME_BUDGET:
-        log(f"skip {name}: time budget reached")
-        return
-    cfg = {**DEFAULTS, **{k: v for k, v in exp.items() if k != "name"}}
-    cfg["name"] = name
-    model = cfg.pop("model")
+        log(f"skip {name}: time budget reached"); return
+    cfg = {**DEFAULTS, **{k: v for k, v in exp.items() if k not in ("name", "model")}}
+    model = exp.get("model", "yolov8n.pt")
     t0 = time.time()
     log(f"START {name}  model={model}")
     try:
-        m = YOLO(model)
-        res = m.train(data=DATA, **cfg)
-        save_dir = str(res.save_dir)
+        save_dir = train_subprocess(name, model, data, cfg)
         met = parse_metrics(save_dir)
         save_artifacts(name, save_dir)
         row = dict(name=name, model=model, status="ok",
-                   minutes=round((time.time() - t0) / 60, 1), **met)
-        log(f"DONE  {name}  mAP50-95={met['map']:.4f} mAP50={met['map50']:.4f} "
-            f"({row['minutes']}m)")
+                   minutes=round((time.time()-t0)/60, 1), **met)
+        log(f"DONE  {name}  mAP50-95={met['map']:.4f} mAP50={met['map50']:.4f} ({row['minutes']}m)")
+    except subprocess.TimeoutExpired:
+        row = dict(name=name, model=model, status="FAIL_timeout",
+                   minutes=round((time.time()-t0)/60, 1))
+        log(f"FAIL  {name}: timeout")
     except Exception as e:
         row = dict(name=name, model=model, status="FAIL",
-                   minutes=round((time.time() - t0) / 60, 1))
-        log(f"FAIL  {name}: {e}\n{traceback.format_exc()}")
+                   minutes=round((time.time()-t0)/60, 1))
+        log(f"FAIL  {name}: {e}")
     ALL_ROWS.append(row)
     write_outputs(); write_status(f"ran {name}")
     commit_push(f"overnight: {name} ({row.get('status')})")
@@ -209,16 +221,13 @@ def make_kfold(k=5, seed=0):
     folds = [imgs[i::k] for i in range(k)]
     yamls = []
     for i in range(k):
-        val = folds[i]
-        train = [p for j in range(k) if j != i for p in folds[j]]
-        tr = os.path.join(FOLDS, f"fold{i}_train.txt")
-        va = os.path.join(FOLDS, f"fold{i}_val.txt")
-        open(tr, "w").write("\n".join(train))
-        open(va, "w").write("\n".join(val))
+        val = folds[i]; train = [p for j in range(k) if j != i for p in folds[j]]
+        tr = os.path.join(FOLDS, f"fold{i}_train.txt"); va = os.path.join(FOLDS, f"fold{i}_val.txt")
+        open(tr, "w", encoding="utf-8").write("\n".join(train))
+        open(va, "w", encoding="utf-8").write("\n".join(val))
         yp = os.path.join(FOLDS, f"fold{i}.yaml")
         open(yp, "w", encoding="utf-8").write(
-            f"train: {tr}\nval: {va}\n"
-            "names:\n  0: title\n  1: body\n  2: logo\n  3: underlay\n")
+            f"train: {tr}\nval: {va}\nnames:\n  0: title\n  1: body\n  2: logo\n  3: underlay\n")
         yamls.append(yp)
     return yamls
 
@@ -229,85 +238,81 @@ def run_kfold():
     for i, yp in enumerate(make_kfold(5)):
         if time.time() - START > TIME_BUDGET:
             break
-        name = f"kfold_{i}"
-        t0 = time.time()
+        name = f"kfold_{i}"; t0 = time.time()
         try:
-            m = YOLO("yolov8n.pt")
-            cfg = {**DEFAULTS, "name": name, "epochs": 120}
-            cfg.pop("project", None)
-            res = m.train(data=yp, project=RUNS, **cfg)
-            met = parse_metrics(str(res.save_dir))
+            save_dir = train_subprocess(name, "yolov8n.pt", yp, {**DEFAULTS, "epochs": 120})
+            met = parse_metrics(save_dir)
             maps.append(met["map"])
             ALL_ROWS.append(dict(name=name, model="yolov8n.pt", status="ok",
                                  minutes=round((time.time()-t0)/60, 1), **met))
             log(f"DONE  {name} mAP50-95={met['map']:.4f}")
         except Exception as e:
+            ALL_ROWS.append(dict(name=name, model="yolov8n.pt", status="FAIL",
+                                 minutes=round((time.time()-t0)/60, 1)))
             log(f"FAIL  {name}: {e}")
         write_outputs(); write_status(f"kfold {i}")
         commit_push(f"overnight: kfold {i}")
     if maps:
         import statistics as st
-        mean = st.mean(maps); sd = st.pstdev(maps)
+        mean, sd = st.mean(maps), (st.pstdev(maps) if len(maps) > 1 else 0.0)
         log(f"K-fold mAP50-95 = {mean:.4f} +/- {sd:.4f}")
         with open(os.path.join(RESULTS, "kfold_summary.txt"), "w") as fh:
             fh.write(f"5-fold mAP50-95: mean={mean:.4f} std={sd:.4f}\nfolds={maps}\n")
 
 
 def write_dev_log():
-    done = [r for r in ALL_ROWS if r.get("status") == "ok"]
-    best = max(ALL_ROWS, key=lambda x: (x.get('map') or -1)) if ALL_ROWS else {}
+    ok = [r for r in ALL_ROWS if r.get("status") == "ok"]
+    okrows = [r for r in ALL_ROWS if isinstance(r.get("map"), float)]
+    best = max(okrows, key=lambda x: x["map"]) if okrows else {}
     txt = f"""# 개발 일지 — Stage 2 Detector (자동 야간 실행)
 
 ## 오늘 자동으로 한 것
-- YOLOv8 소규모 파인튜닝 **최적화 ablation** {len(done)}개 설정 학습 (109장, amp=False, RTX 2060)
+- YOLOv8 소규모 파인튜닝 **최적화 ablation** {len(ok)}개 설정 학습 (109장, amp=False, workers=0, RTX 2060)
 - 비교 축: transfer/freeze, 모델 크기(n/s), augmentation(없음/heavy/카드튜닝), 좌우반전(한글 깨짐 → fliplr=0 검증), 이미지 크기, optimizer/LR, 시드 반복, 5-fold CV
-- 결과표: `results/ablation.csv`, `ABLATION.md`, 차트: `results/ablation_chart.png`
+- 결과: `results/ablation.csv`, `ABLATION.md`, 차트 `results/ablation_chart.png`
 
 ## 핵심 결과
 - **Best: `{best.get('name','?')}` — mAP50-95 = {best.get('map','?')}**
-- (전체 표는 ABLATION.md 참고)
+- 전체 표는 ABLATION.md 참고
 
 ## 다음 (수동 작업 필요)
-1. Label Studio로 4클래스(title/body/logo/underlay) **수동 라벨링** (현재는 EasyOCR pseudo-label = title/body만)
-2. 수동 라벨로 재학습 → 클라우드(RunPod A100)에서 본 학습
-3. detector 결과(box/cls) → PosterLayout 입력(annotation)으로 연결
+1. Label Studio로 4클래스(title/body/logo/underlay) 수동 라벨링 (현재 pseudo-label = title/body)
+2. 수동 라벨로 재학습 → 클라우드(RunPod A100) 본 학습
+3. detector 출력(box/cls) → PosterLayout annotation으로 연결
 """
     with open(os.path.join(ROOT, "DEV_LOG.md"), "w", encoding="utf-8") as fh:
         fh.write(txt)
 
 
 def main():
-    log(f"=== overnight run start (budget {TIME_BUDGET/3600:.1f}h) ===")
+    log(f"=== overnight run start (budget {TIME_BUDGET/3600:.1f}h, isolated subprocesses) ===")
     for exp in EXPERIMENTS:
         run_one(exp)
-    # filler: seed repeats
     for base, kw in SEED_REPEATS:
         for seed in (1, 2):
             if time.time() - START > TIME_BUDGET:
                 break
             run_one(dict(name=f"{base}_seed{seed}", seed=seed, **kw))
-    # k-fold if time remains
     if time.time() - START < TIME_BUDGET:
         run_kfold()
-    write_dev_log()
-    write_outputs(); write_status("DONE")
-    # copy best model out for safekeeping
+    write_dev_log(); write_outputs(); write_status("DONE")
     try:
-        best = max([r for r in ALL_ROWS if r.get("status") == "ok"],
-                   key=lambda x: x.get("map", -1))
-        src = os.path.join(RUNS, best["name"], "weights", "best.pt")
-        if os.path.exists(src):
-            os.makedirs(os.path.join(RESULTS, "best_model"), exist_ok=True)
-            shutil.copy2(src, os.path.join(RESULTS, "best_model", "best.pt"))
-            with open(os.path.join(RESULTS, "best_model", "which.txt"), "w") as fh:
-                fh.write(f"{best['name']}  mAP50-95={best.get('map')}\n")
+        okrows = [r for r in ALL_ROWS if isinstance(r.get("map"), float)]
+        if okrows:
+            best = max(okrows, key=lambda x: x["map"])
+            src = os.path.join(RUNS, best["name"], "weights", "best.pt")
+            if os.path.exists(src):
+                os.makedirs(os.path.join(RESULTS, "best_model"), exist_ok=True)
+                shutil.copy2(src, os.path.join(RESULTS, "best_model", "best.pt"))
+                open(os.path.join(RESULTS, "best_model", "which.txt"), "w").write(
+                    f"{best['name']}  mAP50-95={best['map']}\n")
     except Exception as e:
         log(f"best copy failed: {e}")
     open(os.path.join(ROOT, "DONE.md"), "w").write(
-        f"finished at {time.strftime('%Y-%m-%d %H:%M:%S')}, "
+        f"finished {time.strftime('%Y-%m-%d %H:%M:%S')}, "
         f"{len([r for r in ALL_ROWS if r.get('status')=='ok'])} runs ok\n")
     commit_push("overnight: COMPLETE")
-    log(f"=== overnight run COMPLETE: {len(ALL_ROWS)} runs ===")
+    log(f"=== overnight COMPLETE: {len(ALL_ROWS)} runs ===")
 
 
 if __name__ == "__main__":
