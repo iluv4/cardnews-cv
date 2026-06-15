@@ -1,0 +1,110 @@
+yolo_name,original,split,n_boxes
+img_000.jpg,public_saved-refs__saved_DXgYKrpEiqu.jpg,val,4
+img_001.jpg,references_docs_images_영어카드뉴스_GPT__ChatGPT Image 2026년 5월 4일 오후 12_34_49 (2).png,val,8
+img_002.jpg,public_saved-refs__saved_DJbOPtCPss_.jpg,val,0
+img_003.jpg,references_docs_images_red_tone_card_news__f3e5c7320696d656c733645be6148ac4.jpg,val,1
+img_004.jpg,references_docs_images_insurance_cardnews__Gemini_Generated_Image_484hx5484hx5484h (1).png,val,26
+img_005.jpg,public_templates__ux_trend_2026.png,val,9
+img_006.jpg,public_saved-refs__saved_DXhQlvdmYBb.jpg,val,5
+img_007.jpg,references_docs_images_영어카드뉴스_GPT__ChatGPT Image 2026년 5월 4일 오후 12_34_49 (1).png,val,8
+img_008.jpg,"references_docs_images_seoul_stratup__2024년, 서울대 연세대 학생들이 회사를 차렸습니다. 회사 이름은 에임인텔리전스(AIM Intelligence). AI 회사입니다.OpenAI APAC 유일 가드레일 기여 (8).jpg",val,2
+img_009.jpg,public_saved-refs__saved_DXrNc_DDy_P.jpg,val,0
+img_010.jpg,"references_docs_images_매거진카드뉴스__✈️ 비행기는 탔는데, 설레임과 감흥은 어디로 갔나요여행을 가도 메일을 확인하고,급한 연락을 신경 쓰고,혹은 ’여기까지 왔는데 다 봐야지‘ 하는 마음으로슈퍼 J가 되어 오히.jpg",val,7
+img_011.jpg,references_docs_images_red_tone_card_news__ChatGPT Image 2026년 4월 27일 오전 12_38_34.png,val,13
+img_012.jpg,"references_docs_images_매거진카드뉴스__✈️ 비행기는 탔는데, 설레임과 감흥은 어디로 갔나요여행을 가도 메일을 확인하고,급한 연락을 신경 쓰고,혹은 ’여기까지 왔는데 다 봐야지‘ 하는 마음으로슈퍼 J가 되어 오히 (1).jpg",val,9
+img_013.jpg,references_docs_images_영어카드뉴스_GPT__ChatGPT Image 2026년 5월 4일 오전 09_46_42 (1).png,val,8
+img_014.jpg,references_docs_images_영어카드뉴스_GPT__ChatGPT Image 2026년 5월 4일 오전 09_46_42 (2).png,val,8
+img_015.jpg,public_saved-refs__saved_DWycCJPky4a.jpg,val,8
+img_016.jpg,public_saved-refs__saved_DXs7TFegHrX.jpg,train,0
+img_017.jpg,references_docs_images_2026-ux-trend__page-6.png,train,6
+img_018.jpg,public_saved-refs__saved_DTha7kSAbDz.jpg,train,1
+img_019.jpg,references_docs_images_red_tone_card_news__ChatGPT Image 2026년 4월 27일 오전 12_37_27.png,train,14
+img_020.jpg,public_saved-refs__saved_DXgXgAWgaj6.jpg,train,1
+img_021.jpg,public_templates__english_news_gpt.png,train,8
+img_022.jpg,references_docs_images_단국대소개팅부스_카드뉴스__단국대_소개팅부스_포스터_3.png,train,18
+img_023.jpg,references_docs_images_영어카드뉴스_GPT__ChatGPT Image 2026년 5월 4일 오후 12_34_49 (7).png,train,15
+img_024.jpg,public_saved-refs__saved_DXvPnrjgX5D.jpg,train,0
+img_025.jpg,public_templates__marketing_crew.png,train,15
+img_026.jpg,public_saved-refs__saved_DUnzhvBjENj.jpg,train,1
+img_027.jpg,references_docs_images_영어카드뉴스_GPT__ChatGPT Image 2026년 5월 4일 오후 12_34_49 (5).png,train,10
+img_028.jpg,public_saved-refs__saved_DXkWlrGEky2.jpg,train,1
+img_029.jpg,"references_docs_images_seoul_stratup__2024년, 서울대 연세대 학생들이 회사를 차렸습니다. 회사 이름은 에임인텔리전스(AIM Intelligence). AI 회사입니다.OpenAI APAC 유일 가드레일 기여 (2).jpg",train,2
+img_030.jpg,public_saved-refs__saved_DCGoo8mSr0M.jpg,train,1
+img_031.jpg,references_docs_images_2026-ux-trend__page-3.png,train,6
+img_032.jpg,references_docs_images_영어카드뉴스_GPT__ChatGPT Image 2026년 5월 4일 오전 09_46_44 (7).png,train,15
+img_033.jpg,public_saved-refs__saved_DWMFo8OiOnh.jpg,train,1
+img_034.jpg,references_docs_images_2026-ux-trend__page-4.png,train,5
+img_035.jpg,"references_docs_images_seoul_stratup__2024년, 서울대 연세대 학생들이 회사를 차렸습니다. 회사 이름은 에임인텔리전스(AIM Intelligence). AI 회사입니다.OpenAI APAC 유일 가드레일 기여 (7).jpg",train,11
+img_036.jpg,references_docs_images_단국대소개팅부스_카드뉴스__ChatGPT Image 2026년 5월 3일 오전 12_20_55.png,train,17
+img_037.jpg,references_docs_images_단국대소개팅부스_카드뉴스__단국대_소개팅부스_포스터_1.png,train,10
+img_038.jpg,references_docs_images_단국대소개팅부스_카드뉴스__ChatGPT Image 2026년 5월 3일 오후 04_07_45.png,train,15
+img_039.jpg,public_saved-refs__saved_DXthDH8iTJP.jpg,train,6
+img_040.jpg,public_saved-refs__saved_DXafKzdma57.jpg,train,1
+img_041.jpg,public_saved-refs__saved_DSRnPLjEiQ2.jpg,train,4
+img_042.jpg,public_saved-refs__saved_DXss4zNGa79.jpg,train,6
+img_043.jpg,references_docs_images_단국대소개팅부스_카드뉴스__단국대_소개팅부스_포스터_2.png,train,17
+img_044.jpg,references_docs_images_insurance_cardnews__download-2026-04-29T16_56_26.jpg,train,1
+img_045.jpg,references_docs_images_insurance_cardnews__가격표1.png,train,33
+img_046.jpg,references_docs_images_영어카드뉴스_GPT__ChatGPT Image 2026년 5월 4일 오후 12_34_49 (4).png,train,13
+img_047.jpg,public_saved-refs__saved_DXqKsEpiTRA.jpg,train,3
+img_048.jpg,public_saved-refs__saved_DXtaAqJkvip.jpg,train,1
+img_049.jpg,"references_docs_images_seoul_stratup__2024년, 서울대 연세대 학생들이 회사를 차렸습니다. 회사 이름은 에임인텔리전스(AIM Intelligence). AI 회사입니다.OpenAI APAC 유일 가드레일 기여.jpg",train,7
+img_050.jpg,references_docs_images_insurance_cardnews__가격표2.png,train,13
+img_051.jpg,public_saved-refs__saved_DWaxQGjjnV-.jpg,train,0
+img_052.jpg,"references_docs_images_매거진카드뉴스__✈️ 비행기는 탔는데, 설레임과 감흥은 어디로 갔나요여행을 가도 메일을 확인하고,급한 연락을 신경 쓰고,혹은 ’여기까지 왔는데 다 봐야지‘ 하는 마음으로슈퍼 J가 되어 오히 (2).jpg",train,14
+img_053.jpg,"references_docs_images_seoul_stratup__2024년, 서울대 연세대 학생들이 회사를 차렸습니다. 회사 이름은 에임인텔리전스(AIM Intelligence). AI 회사입니다.OpenAI APAC 유일 가드레일 기여 (5).jpg",train,28
+img_054.jpg,public_saved-refs__saved_DMcfFaNz18t.jpg,train,3
+img_055.jpg,references_docs_images_red_tone_card_news__ChatGPT Image 2026년 4월 27일 오전 12_38_46.png,train,15
+img_056.jpg,references_docs_images_단국대소개팅부스_카드뉴스__단국대_소개팅부스.png,train,15
+img_057.jpg,public_saved-refs__saved_DXbbCocgR-n.jpg,train,5
+img_058.jpg,references_docs_images_2026-ux-trend__page-2.png,train,47
+img_059.jpg,public_saved-refs__saved_DWm4lqVAZNT.jpg,train,4
+img_060.jpg,public_saved-refs__saved_DXgBRlBiSc5.jpg,train,0
+img_061.jpg,"references_docs_images_seoul_stratup__2024년, 서울대 연세대 학생들이 회사를 차렸습니다. 회사 이름은 에임인텔리전스(AIM Intelligence). AI 회사입니다.OpenAI APAC 유일 가드레일 기여 (3).jpg",train,7
+img_062.jpg,references_docs_images_insurance_cardnews__ChatGPT Image 2026년 4월 30일 오후 04_45_33.png,train,0
+img_063.jpg,references_docs_images_red_tone_card_news__2a61f9db776f07e9c79043d1e2abc714.jpg,train,0
+img_064.jpg,public_saved-refs__saved_C-QCe6gvswR.jpg,train,3
+img_065.jpg,references_docs_images_영어카드뉴스_GPT__ChatGPT Image 2026년 5월 4일 오전 09_46_45 (8).png,train,8
+img_066.jpg,public_saved-refs__saved_DVneA-aiSoy.jpg,train,1
+img_067.jpg,public_saved-refs__saved_C-Ul3yQpgWw.jpg,train,4
+img_068.jpg,public_saved-refs__saved_DSRt5OfEQAS.jpg,train,1
+img_069.jpg,references_docs_images_영어카드뉴스_GPT__ChatGPT Image 2026년 5월 4일 오후 12_34_49 (3).png,train,10
+img_070.jpg,references_docs_images_red_tone_card_news__91cb1b2ef33ad0cfb3b32d06508507c6.jpg,train,0
+img_071.jpg,references_docs_images_insurance_cardnews__Gemini_Generated_Image_w8apitw8apitw8ap.png,train,26
+img_072.jpg,references_docs_images_영어카드뉴스_GPT__ChatGPT Image 2026년 5월 4일 오전 09_46_44 (6).png,train,20
+img_073.jpg,references_docs_images_red_tone_card_news__ChatGPT Image 2026년 4월 27일 오전 12_38_39.png,train,13
+img_074.jpg,public_saved-refs__saved_DXlvd9FiSGo.jpg,train,0
+img_075.jpg,public_saved-refs__saved_DXzAql4zg0Y.jpg,train,1
+img_076.jpg,references_docs_images_insurance_cardnews__Gemini_Generated_Image_484hx5484hx5484h.png,train,30
+img_077.jpg,references_docs_images_영어카드뉴스_GPT__ChatGPT Image 2026년 5월 4일 오후 12_34_49 (6).png,train,20
+img_078.jpg,references_docs_images_seoul_stratup__ChatGPT Image 2026년 5월 1일 오후 03_10_05.png,train,3
+img_079.jpg,references_docs_images_red_tone_card_news__ChatGPT Image 2026년 4월 27일 오전 12_38_42.png,train,11
+img_080.jpg,references_docs_images_marketing_crew__ChatGPT Image 2026년 4월 30일 오후 01_23_38.png,train,15
+img_081.jpg,public_templates__magazine_news.png,train,9
+img_082.jpg,public_saved-refs__saved_DU8Ly-xk4fG.jpg,train,0
+img_083.jpg,references_docs_images_단국대소개팅부스_카드뉴스__단국대_소개팅부스_포스터_4.png,train,16
+img_084.jpg,public_saved-refs__saved_DXx7mUukqhu.jpg,train,0
+img_085.jpg,public_saved-refs__saved_DXV3eIYEtFK.jpg,train,2
+img_086.jpg,"references_docs_images_seoul_stratup__2024년, 서울대 연세대 학생들이 회사를 차렸습니다. 회사 이름은 에임인텔리전스(AIM Intelligence). AI 회사입니다.OpenAI APAC 유일 가드레일 기여 (4).jpg",train,17
+img_087.jpg,references_docs_images_red_tone_card_news__ChatGPT Image 2026년 4월 27일 오전 12_37_49.png,train,12
+img_088.jpg,public_saved-refs__saved_DXtQtqkFPYO.jpg,train,1
+img_089.jpg,"references_docs_images_seoul_stratup__2024년, 서울대 연세대 학생들이 회사를 차렸습니다. 회사 이름은 에임인텔리전스(AIM Intelligence). AI 회사입니다.OpenAI APAC 유일 가드레일 기여 (6).jpg",train,7
+img_090.jpg,public_saved-refs__saved_DW51f39AosX.jpg,train,1
+img_091.jpg,"references_docs_images_매거진카드뉴스__✈️ 비행기는 탔는데, 설레임과 감흥은 어디로 갔나요여행을 가도 메일을 확인하고,급한 연락을 신경 쓰고,혹은 ’여기까지 왔는데 다 봐야지‘ 하는 마음으로슈퍼 J가 되어 오히 (3).jpg",train,8
+img_092.jpg,public_saved-refs__saved_DXuEozfDKhZ.jpg,train,1
+img_093.jpg,public_saved-refs__saved_DXJUXCuEa_5.jpg,train,1
+img_094.jpg,references_docs_images_red_tone_card_news__2f90a4b90c6195d8d57016ac45297239.jpg,train,0
+img_095.jpg,public_saved-refs__saved_DXm_pNsE9Zy.jpg,train,4
+img_096.jpg,"references_docs_images_seoul_stratup__2024년, 서울대 연세대 학생들이 회사를 차렸습니다. 회사 이름은 에임인텔리전스(AIM Intelligence). AI 회사입니다.OpenAI APAC 유일 가드레일 기여 (1).jpg",train,28
+img_097.jpg,references_docs_images_2026-ux-trend__page-1.png,train,9
+img_098.jpg,references_docs_images_marketing_crew__ChatGPT Image 2026년 4월 30일 오후 01_23_45.png,train,19
+img_099.jpg,public_saved-refs__saved_DXwBHaAy4XN.jpg,train,4
+img_100.jpg,references_docs_images_insurance_cardnews__ChatGPT Image 2026년 4월 29일 오후 04_12_21.png,train,29
+img_101.jpg,references_docs_images_marketing_crew__ChatGPT Image 2026년 4월 30일 오후 01_23_51.png,train,17
+img_102.jpg,references_docs_images_red_tone_card_news__5a16b96ed1fe949e8515cfe3f9c60435.jpg,train,0
+img_103.jpg,public_saved-refs__saved_DXtUkPZiQBU.jpg,train,9
+img_104.jpg,public_saved-refs__saved_DOiPIpEgay7.jpg,train,2
+img_105.jpg,references_docs_images_insurance_cardnews__ChatGPT Image 2026년 4월 30일 오후 04_50_08.png,train,8
+img_106.jpg,references_docs_images_영어카드뉴스_GPT__ChatGPT Image 2026년 5월 4일 오전 09_46_43 (5).png,train,10
+img_107.jpg,references_docs_images_2026-ux-trend__page-5.png,train,5
+img_108.jpg,references_docs_images_영어카드뉴스_GPT__ChatGPT Image 2026년 5월 4일 오후 12_34_50 (8).png,train,8

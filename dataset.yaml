@@ -1,0 +1,8 @@
+path: C:/Users/Administrator/Downloads/cardnews-detector/dataset
+train: images/train
+val: images/val
+names:
+  0: title
+  1: body
+  2: logo
+  3: underlay
