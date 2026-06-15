@@ -2,6 +2,8 @@
 __pycache__/
 *.pyc
 runs/
+folds/
+*.log
 *.zip
 .DS_Store
 yolov8*.pt
