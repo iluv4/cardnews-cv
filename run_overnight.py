@@ -35,7 +35,9 @@ MASTER_CSV = os.path.join(RESULTS, "ablation.csv")
 ALL_ROWS: list[dict] = []
 
 # workers=0 -> no DataLoader subprocess spawning (Windows paging-file safe).
-DEFAULTS = dict(imgsz=640, batch=8, epochs=150, freeze=10, optimizer="auto",
+# batch=2: this is a shared 16GB box with ~4GB commit headroom; small batch keeps
+# each isolated run inside that budget (raising the pagefile is not permitted here).
+DEFAULTS = dict(imgsz=640, batch=2, epochs=150, freeze=10, optimizer="auto",
                 lr0=0.01, amp=False, device=0, workers=0, seed=0, plots=True,
                 verbose=False, exist_ok=True, project=RUNS)
 
@@ -58,11 +60,11 @@ EXPERIMENTS = [
     dict(name="e07_aug_card",            model="yolov8n.pt", **AUG_CARD),
     dict(name="e08_fliplr_on_BAD",       model="yolov8n.pt", fliplr=0.5),
     dict(name="e09_imgsz512",            model="yolov8n.pt", imgsz=512),
-    dict(name="e10_imgsz768_b4",         model="yolov8n.pt", imgsz=768, batch=4),
+    dict(name="e10_imgsz768",            model="yolov8n.pt", imgsz=768),
     dict(name="e11_adamw",               model="yolov8n.pt", optimizer="AdamW", lr0=0.001),
     dict(name="e12_lr_low",              model="yolov8n.pt", lr0=0.005),
-    dict(name="e13_yolov8s_freeze10",    model="yolov8s.pt", batch=4),
-    dict(name="e14_yolov8s_freeze0",     model="yolov8s.pt", batch=4, freeze=0),
+    dict(name="e13_yolov8s_freeze10",    model="yolov8s.pt"),
+    dict(name="e14_yolov8s_freeze0",     model="yolov8s.pt", freeze=0),
     dict(name="e15_long300_card",        model="yolov8n.pt", epochs=300, **AUG_CARD),
 ]
 SEED_REPEATS = [
@@ -193,25 +195,30 @@ def run_one(exp: dict, data: str = DATA):
     cfg = {**DEFAULTS, **{k: v for k, v in exp.items() if k not in ("name", "model")}}
     model = exp.get("model", "yolov8n.pt")
     t0 = time.time()
-    log(f"START {name}  model={model}")
-    try:
-        save_dir = train_subprocess(name, model, data, cfg)
-        met = parse_metrics(save_dir)
-        save_artifacts(name, save_dir)
-        row = dict(name=name, model=model, status="ok",
-                   minutes=round((time.time()-t0)/60, 1), **met)
-        log(f"DONE  {name}  mAP50-95={met['map']:.4f} mAP50={met['map50']:.4f} ({row['minutes']}m)")
-    except subprocess.TimeoutExpired:
-        row = dict(name=name, model=model, status="FAIL_timeout",
-                   minutes=round((time.time()-t0)/60, 1))
-        log(f"FAIL  {name}: timeout")
-    except Exception as e:
-        row = dict(name=name, model=model, status="FAIL",
-                   minutes=round((time.time()-t0)/60, 1))
-        log(f"FAIL  {name}: {e}")
+    row = dict(name=name, model=model, status="FAIL",
+               minutes=round((time.time()-t0)/60, 1))
+    for attempt in (1, 2):   # retry once: failures are usually transient OOM
+        log(f"START {name}  model={model} (attempt {attempt})")
+        try:
+            save_dir = train_subprocess(name, model, data, cfg)
+            met = parse_metrics(save_dir)
+            save_artifacts(name, save_dir)
+            row = dict(name=name, model=model, status="ok",
+                       minutes=round((time.time()-t0)/60, 1), **met)
+            log(f"DONE  {name}  mAP50-95={met['map']:.4f} mAP50={met['map50']:.4f} ({row['minutes']}m)")
+            break
+        except subprocess.TimeoutExpired:
+            row["status"] = "FAIL_timeout"; log(f"FAIL  {name}: timeout"); break
+        except Exception as e:
+            row = dict(name=name, model=model, status="FAIL",
+                       minutes=round((time.time()-t0)/60, 1))
+            log(f"attempt {attempt} failed for {name}: {e}")
+            if attempt == 1:
+                time.sleep(45)   # let system memory free, then retry
     ALL_ROWS.append(row)
     write_outputs(); write_status(f"ran {name}")
     commit_push(f"overnight: {name} ({row.get('status')})")
+    time.sleep(10)   # pause between runs so the prior process fully releases memory
 
 
 def make_kfold(k=5, seed=0):
