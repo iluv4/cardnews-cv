@@ -88,18 +88,41 @@ def log(msg: str):
         pass
 
 
-def git(*args):
+def git(*args, timeout=120):
     try:
-        subprocess.run(["git", *args], cwd=ROOT, check=False,
-                       capture_output=True, text=True, timeout=120)
+        return subprocess.run(["git", *args], cwd=ROOT, check=False,
+                              capture_output=True, text=True, timeout=timeout)
     except Exception as e:
         log(f"git {' '.join(args)} failed: {e}")
+        return None
 
 
 def commit_push(message: str):
     git("add", "results", "ABLATION.md", "STATUS.md", "DEV_LOG.md", "DONE.md")
-    git("-c", "user.email=4mins12@gmail.com", "-c", "user.name=iluv4",
-        "commit", "-m", message)
+
+    # SAFETY GUARD: an auto-commit must only ADD result files. It must never delete
+    # tracked files. (A bad working-tree state once staged the whole repo as deleted
+    # and the resulting push wiped origin/main.) If anything is staged for deletion,
+    # abort and unstage rather than commit a destructive tree.
+    deleted = git("diff", "--cached", "--diff-filter=D", "--name-only")
+    if deleted and deleted.stdout.strip():
+        n = len(deleted.stdout.strip().splitlines())
+        log(f"ABORT commit: {n} tracked file(s) staged for deletion — refusing to wipe repo")
+        git("reset", "-q")  # unstage everything; leave working tree untouched
+        return
+
+    # Nothing to commit -> skip cleanly (avoids empty/no-op commits).
+    staged = git("diff", "--cached", "--name-only")
+    if not (staged and staged.stdout.strip()):
+        log("nothing new staged; skipping commit")
+        return
+
+    committed = git("-c", "user.email=4mins12@gmail.com", "-c", "user.name=iluv4",
+                    "commit", "-m", message)
+    if not (committed and committed.returncode == 0):
+        log("commit failed; skipping push")
+        return
+
     tok = os.environ.get("GH_TOKEN", "")
     if tok:
         try:
