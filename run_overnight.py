@@ -28,17 +28,22 @@ for d in (RESULTS, RUNS, FOLDS):
     os.makedirs(d, exist_ok=True)
 
 START = time.time()
-TIME_BUDGET = 9.5 * 3600
-RUN_TIMEOUT = 90 * 60                      # per-experiment hard cap
+TIME_BUDGET = float(os.getenv("TIME_BUDGET_H", "9.5")) * 3600
+RUN_TIMEOUT = int(os.getenv("RUN_TIMEOUT_MIN", "90")) * 60   # per-experiment hard cap
 LOG = os.path.join(ROOT, "overnight.log")
 MASTER_CSV = os.path.join(RESULTS, "ablation.csv")
 ALL_ROWS: list[dict] = []
 
 # workers=0 -> no DataLoader subprocess spawning (Windows paging-file safe).
-# batch=2: this is a shared 16GB box with ~4GB commit headroom; small batch keeps
-# each isolated run inside that budget (raising the pagefile is not permitted here).
-DEFAULTS = dict(imgsz=640, batch=2, epochs=150, freeze=10, optimizer="auto",
-                lr0=0.01, amp=False, device=0, workers=0, seed=0, plots=True,
+# Knobs are env-configurable so the SAME script runs on the tight local box
+# (defaults batch=2/workers=0/amp off — fits ~4GB commit headroom) and on a cloud
+# GPU (RunPod: BATCH=16 WORKERS=8 AMP=1 -> fast, no memory issues).
+_BATCH = int(os.getenv("BATCH", "2"))
+_WORKERS = int(os.getenv("WORKERS", "0"))
+_AMP = os.getenv("AMP", "0") == "1"
+_IMGSZ = int(os.getenv("IMGSZ", "640"))
+DEFAULTS = dict(imgsz=_IMGSZ, batch=_BATCH, epochs=150, freeze=10, optimizer="auto",
+                lr0=0.01, amp=_AMP, device=0, workers=_WORKERS, seed=0, plots=True,
                 verbose=False, exist_ok=True, project=RUNS)
 
 # Korean text: horizontal flip mirrors Hangul -> fliplr=0 is the correct default.
@@ -291,7 +296,17 @@ def write_dev_log():
         fh.write(txt)
 
 
+def fix_dataset_yaml():
+    """Rewrite dataset.yaml with an absolute path for THIS machine so it is
+    portable across Windows / Linux / cloud (the committed copy may differ)."""
+    p = os.path.join(ROOT, "dataset").replace("\\", "/")
+    with open(DATA, "w", encoding="utf-8") as fh:
+        fh.write(f"path: {p}\ntrain: images/train\nval: images/val\n"
+                 "names:\n  0: title\n  1: body\n  2: logo\n  3: underlay\n")
+
+
 def main():
+    fix_dataset_yaml()
     log(f"=== overnight run start (budget {TIME_BUDGET/3600:.1f}h, isolated subprocesses) ===")
     for exp in EXPERIMENTS:
         run_one(exp)
