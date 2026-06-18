@@ -72,8 +72,16 @@ white panel + checklist, keyword highlight).
    `reflib/embed_clip.py` (CLIP semantic embeddings) + `reflib/tag_layout.py`
    (detector layout signature per ref — this is also the indexing half of step 2).
    After CLIP build, similar/cluster auto-upgrade to semantic. See `reflib/README.md`.
-2. **Layout extraction from ANY selected reference** (generalize copy_layout.py
-   beyond committed labels → run detector live; needs torch on RunPod or local).
+2. **Layout extraction from ANY selected reference: LOCAL PROOF DONE** (2026-06-18),
+   RunPod extension TODO. `gen/extract_templates.py` turns the committed labels
+   into a refillable template per card → `service/library/templates.json` (95
+   templates from the 109 labeled imgs); `service/cardgen/from_template.py`
+   (`render_from_template`) copies a template's actual title/body blocks + palette
+   and refills with user text; `gen/refill_demo.py` proves the loop. Wired into the
+   service (`/api/generate_from_ref`, see step 4). REMAINING = run the trained
+   detector over the full 687-corpus on RunPod to extract a template for EVERY
+   searchable ref (identical render path, no code change) so every selection — not
+   just the 95 labeled — copies a real layout.
 3. ~~Engine v2 components to hit reference quality~~ **DONE** (2026-06-18) —
    but NOTE THE ROLE: v2 is the **RENDERER (quality layer), one hand-authored
    archetype**, NOT the product. The product needs **one layout template per
@@ -88,12 +96,16 @@ white panel + checklist, keyword highlight).
 4. **Service: DONE local-verifiable** (2026-06-18). `service/app.py` (FastAPI) +
    `service/static/index.html`: `/api/search`, `/api/similar/{id}`,
    `/api/clusters`, `/api/reference/{id}`, `POST /api/generate` (PNG),
-   `POST /api/deck` (zip). Web UI = search → select (theme auto-applied from the
-   ref palette) → auto-fill text → generate → preview → deck export. Run:
+   `POST /api/deck` (zip), `POST /api/generate_from_ref` (copy the selected ref's
+   layout). reflib now also indexes the labeled `dataset/` imgs (796 total) so the
+   95 template-backed refs are searchable (UI shows a "레이아웃" badge + has_template).
+   Web UI = search → select → auto-fill text → generate → preview → deck export. On
+   select+generate it calls `/api/generate_from_ref`: **template-backed refs copy
+   the real per-reference layout**; others fall back to the themed v2 layout
+   (X-Render-Mode header says which). Run:
    `py -3 -m uvicorn service.app:app --reload --port 8000` (deps:
-   `pip install fastapi "uvicorn[standard]"`). NOTE: auto-fill currently copies
-   tone/theme only; copying the actual per-reference LAYOUT is gated on step 2
-   (live detector extraction) — that wiring is the next real-engine milestone.
+   `pip install fastapi "uvicorn[standard]"`). The themed fallback shrinks to zero
+   once step 2's RunPod pass gives every searchable ref a template.
 5. RunPod runbook (RUNPOD_GENERATION.md) for detector/DS-GAN/labeling.
 
 ## Customer segments (planning)
