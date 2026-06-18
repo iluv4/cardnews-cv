@@ -99,10 +99,22 @@ white panel + checklist, keyword highlight).
    `POST /api/deck` (zip), `POST /api/generate_from_ref` (copy the selected ref's
    layout). reflib now also indexes the labeled `dataset/` imgs (796 total) so the
    95 template-backed refs are searchable (UI shows a "레이아웃" badge + has_template).
-   Web UI = search → select → auto-fill text → generate → preview → deck export. On
-   select+generate it calls `/api/generate_from_ref`: **template-backed refs copy
-   the real per-reference layout**; others fall back to the themed v2 layout
-   (X-Render-Mode header says which). Run:
+   **Web UI redesigned to a deck-centric 5-step production workflow** (2026-06-18,
+   `service/static/index.html`): ① 기획(덱 제목·브랜드·세그먼트·검색 키워드) →
+   ② 구성(다중 카드 아웃라인 에디터: 추가/삭제/순서변경, 카드별 제목·부제·체크리스트,
+   종류 자동판별 커버/체크리스트/본문) → ③ 스타일(레퍼런스 검색·1개 선택, 덱 전체에
+   톤/레이아웃 적용) → ④ 생성·검토(덱 전체 렌더 → 필름스트립, 클릭 확대, '수정'→②로) →
+   ⑤ 내보내기(ZIP 다운로드 + 레퍼런스 평가). 상태는 localStorage 저장(새로고침 보존).
+   Backend got **two deck endpoints** (`POST /api/deck/render` → list of base64 PNG
+   data-URLs for the filmstrip; `POST /api/deck/export` → zip), both via the shared
+   `_render_deck(ref_id, cards, brand, size, seed)` helper: template-backed ref →
+   every card copies the real layout (mode `template`); ref w/o template → themed v2
+   engine with palette synthesized from the ref, cover + page-numbered interiors
+   (mode `theme`); no ref → default theme (`theme-default`). The older single-card
+   endpoints (`/api/generate`, `/api/generate_from_ref`, `/api/deck`) are kept intact.
+   Verified end-to-end (TestClient + in-browser via Claude Preview): search→select→
+   render(템플릿/테마 양쪽)→export 모두 동작, 렌더 품질=레퍼런스 디자인 언어 일치.
+   `.claude/launch.json` added (preview server config). Run:
    `py -3 -m uvicorn service.app:app --reload --port 8000` (deps:
    `pip install fastapi "uvicorn[standard]"`). The themed fallback shrinks to zero
    once step 2's RunPod pass gives every searchable ref a template.
