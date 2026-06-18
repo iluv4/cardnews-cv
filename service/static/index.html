@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>cardnews-cv · 레퍼런스 검색 → 카드 생성</title>
+<style>
+  :root { --bg:#0e1116; --panel:#171b22; --line:#262c36; --fg:#e7ebf0;
+          --muted:#8b95a3; --accent:#f7889a; --accent2:#5cc8a0; }
+  * { box-sizing:border-box; }
+  body { margin:0; font:14px/1.5 system-ui,"Malgun Gothic",sans-serif;
+         background:var(--bg); color:var(--fg); }
+  header { padding:14px 20px; border-bottom:1px solid var(--line);
+           display:flex; gap:14px; align-items:center; }
+  header h1 { font-size:15px; margin:0; font-weight:700; }
+  header .sub { color:var(--muted); font-size:12px; }
+  .wrap { display:grid; grid-template-columns:1fr 360px; gap:0; height:calc(100vh - 53px); }
+  .left { padding:16px 20px; overflow:auto; }
+  .right { border-left:1px solid var(--line); padding:16px 18px; overflow:auto;
+           background:var(--panel); }
+  .controls { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px; }
+  input,select,button,textarea { font:inherit; color:var(--fg);
+        background:#0f131a; border:1px solid var(--line); border-radius:8px;
+        padding:8px 10px; }
+  input:focus,textarea:focus { outline:1px solid var(--accent); }
+  button { cursor:pointer; background:#202733; }
+  button.primary { background:var(--accent); color:#2a0d14; border:none; font-weight:700; }
+  .chip { padding:6px 10px; border-radius:999px; font-size:12px; }
+  .chip.on { background:var(--accent2); color:#06291f; border-color:transparent; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr));
+          gap:10px; }
+  .card { border:1px solid var(--line); border-radius:10px; overflow:hidden;
+          background:#0f131a; cursor:pointer; transition:.12s; position:relative; }
+  .card:hover { border-color:var(--accent); transform:translateY(-2px); }
+  .card.sel { outline:2px solid var(--accent); }
+  .card img { width:100%; aspect-ratio:1; object-fit:cover; display:block; }
+  .card .meta { padding:6px 8px; font-size:11px; color:var(--muted);
+                white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .card .pal { display:flex; height:5px; }
+  .card .pal i { flex:1; }
+  label { font-size:12px; color:var(--muted); display:block; margin:10px 0 4px; }
+  textarea { width:100%; resize:vertical; }
+  .row { display:flex; gap:8px; }
+  .row > * { flex:1; }
+  #preview { width:100%; border-radius:12px; border:1px solid var(--line);
+             margin-top:10px; background:#0f131a; }
+  .hint { color:var(--muted); font-size:12px; }
+  .count { color:var(--muted); font-size:12px; margin:0 0 10px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>cardnews-cv</h1>
+  <span class="sub">레퍼런스 라이브러리 검색 → 선택 → 자동 채움 → 카드 생성</span>
+</header>
+<div class="wrap">
+  <div class="left">
+    <div class="controls">
+      <input id="q" placeholder="주제 검색 (예: smart farm, hanok, support)" style="flex:2;min-width:220px">
+      <input id="color" placeholder="#15402b" style="width:110px">
+      <span class="chip" data-f="dark">다크</span>
+      <span class="chip" data-f="cover">표지</span>
+      <button onclick="search()">검색</button>
+      <button onclick="reset()">초기화</button>
+    </div>
+    <p class="count" id="count"></p>
+    <div class="grid" id="grid"></div>
+  </div>
+
+  <div class="right">
+    <strong>카드 생성</strong>
+    <p class="hint" id="selinfo">레퍼런스를 클릭하면 톤/테마가 자동 적용됩니다.</p>
+    <label>제목 (줄바꿈 = Enter)</label>
+    <textarea id="title" rows="2">스마트팜으로\n바뀌는 농업</textarea>
+    <label>부제 (*키워드* = 강조)</label>
+    <textarea id="subtitle" rows="2">복잡한 지원사업, *핵심만* 한 장에 정리했어요</textarea>
+    <label>체크리스트 (한 줄에 하나)</label>
+    <textarea id="checklist" rows="3">신청 자격과 기간 한눈에
+필요 서류와 절차 정리
+문의처와 마감일까지</textarea>
+    <div class="row">
+      <div><label>테마</label>
+        <select id="theme">
+          <option>forest</option><option>midnight</option><option>coral</option>
+          <option>sky</option><option>mint</option><option>mono</option>
+        </select></div>
+      <div><label>브랜드</label><input id="brand" value="AGRI"></div>
+    </div>
+    <button class="primary" style="width:100%;margin-top:14px" onclick="generate()">생성</button>
+    <img id="preview" alt="">
+  </div>
+</div>
+
+<script>
+const F = { dark:false, cover:false };
+let selected = null;
+
+document.querySelectorAll('.chip').forEach(c => c.onclick = () => {
+  F[c.dataset.f] = !F[c.dataset.f]; c.classList.toggle('on', F[c.dataset.f]); search();
+});
+
+function qs() {
+  const p = new URLSearchParams();
+  const q = document.getElementById('q').value.trim();
+  const c = document.getElementById('color').value.trim();
+  if (q) p.set('text', q);
+  if (c) p.set('color', c);
+  if (F.dark) p.set('dark', 'true');
+  if (F.cover) p.set('cover', 'true');
+  p.set('k', '36');
+  return p.toString();
+}
+
+async function search() {
+  const r = await fetch('/api/search?' + qs());
+  render((await r.json()));
+}
+function reset() {
+  document.getElementById('q').value = '';
+  document.getElementById('color').value = '';
+  F.dark = F.cover = false;
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('on'));
+  search();
+}
+
+function render(data) {
+  document.getElementById('count').textContent = data.count + ' 레퍼런스';
+  const g = document.getElementById('grid'); g.innerHTML = '';
+  data.results.forEach(r => {
+    const el = document.createElement('div');
+    el.className = 'card' + (selected === r.id ? ' sel' : '');
+    const pal = (r.palette || []).slice(0,5)
+      .map(c => `<i style="background:rgb(${c[0]},${c[1]},${c[2]})"></i>`).join('');
+    el.innerHTML =
+      `<img loading="lazy" src="/api/reference/${encodeURIComponent(r.id)}">
+       <div class="pal">${pal}</div>
+       <div class="meta">${r.theme} · ${r.dark?'dark':'light'} · ${r.deck.slice(0,22)}</div>`;
+    el.onclick = () => select(r, el);
+    g.appendChild(el);
+  });
+}
+
+function select(r, el) {
+  selected = r.id;
+  document.querySelectorAll('.card').forEach(c => c.classList.remove('sel'));
+  el.classList.add('sel');
+  document.getElementById('theme').value = r.theme;
+  document.getElementById('selinfo').textContent =
+    `선택: ${r.id}  → 테마 "${r.theme}" 자동 적용`;
+}
+
+async function generate() {
+  const body = {
+    title: document.getElementById('title').value.replace(/\\n/g, '\n'),
+    subtitle: document.getElementById('subtitle').value || null,
+    checklist: document.getElementById('checklist').value.split('\n').map(s=>s.trim()).filter(Boolean),
+    theme: document.getElementById('theme').value,
+    brand: document.getElementById('brand').value || null,
+    size: 1080,
+  };
+  if (!body.checklist.length) body.checklist = null;
+  const r = await fetch('/api/generate', {
+    method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
+  if (!r.ok) { alert('생성 실패: ' + await r.text()); return; }
+  document.getElementById('preview').src = URL.createObjectURL(await r.blob());
+}
+
+search();
+</script>
+</body>
+</html>

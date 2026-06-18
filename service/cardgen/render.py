@@ -1,17 +1,25 @@
-"""Card-news rendering engine: generate_card / generate_deck.
+"""Card-news rendering engine v2: generate_card / generate_deck.
 
-Quality-first, deterministic, no GPU in the hot path. Backgrounds can be a
-designer gradient (theme) or a user photo (saliency-aware placement + adaptive
-text color + scrim). Typography uses Pretendard with a title/body hierarchy.
+Two rendering paths:
+  * Rich themed cards (no photo) — dark/branded background + a consistent
+    scattered deco layer + two-tone glowing title + keyword-highlighted
+    subtitle + an optional white rounded checklist panel + brand mark. This is
+    the look distilled from real gov/agri card-news (e.g. the EPIS deck) and is
+    what makes output read as designer-made rather than "AI-tic".
+  * Photo cards — user image with saliency-light placement, adaptive text color
+    and a scrim (kept from v1; good enough for photo backgrounds).
+
+Deterministic, CPU-only (Pillow). A deck shares one theme + one deco seed so the
+set feels like a single designed series.
 """
-import os
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter
 
 from . import themes as TH
 from . import templates as TP
+from . import components as C
 from .assets import font
-from .placement import calmest_band, region_luma
+from .placement import region_luma
 
 SIZE = (1080, 1350)
 
@@ -37,19 +45,30 @@ def cover_fit(img, size):
     return img.crop((x, y, x + w, y + h))
 
 
-def accent_blob(img, color, seed=0):
-    """Subtle large translucent circle for visual interest on flat backgrounds."""
+def _vignette(img, strength=0.55):
+    """Soft radial darkening toward the corners — adds depth to flat fills."""
     w, h = img.size
-    layer = Image.new("RGBA", img.size, (0, 0, 0, 0))
-    d = ImageDraw.Draw(layer)
-    cx = w * (0.85 if seed % 2 else 0.15)
-    cy = h * (0.12 if seed % 3 else 0.9)
-    r = int(w * 0.42)
-    d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=color + (28,))
-    img.alpha_composite(layer.filter(ImageFilter.GaussianBlur(2)))
+    yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
+    cx, cy = w / 2, h / 2
+    d = np.sqrt(((xx - cx) / cx) ** 2 + ((yy - cy) / cy) ** 2)
+    m = np.clip((d - 0.6) / 0.9, 0, 1) * strength
+    layer = Image.fromarray((m * 255).astype("uint8"), "L")
+    black = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    black.putalpha(layer)
+    img.alpha_composite(black)
 
 
-# ---------- text ----------
+def themed_background(size, theme, seed):
+    base = gradient(size, theme["bg"][0], theme["bg"][-1],
+                    theme.get("angle", 90)).convert("RGBA")
+    if theme.get("dark", True):
+        _vignette(base)
+    C.scatter_deco(base, theme, seed,
+                   alpha=34 if theme.get("dark", True) else 26)
+    return base
+
+
+# ---------- photo path (kept from v1) ----------
 def _wrap(draw, text, fnt, max_w):
     out = []
     for para in text.split("\n"):
@@ -71,7 +90,8 @@ def _fit(draw, text, bw, bh, weight, start, min_px=18, lh=1.16):
         lines = _wrap(draw, text, fnt, bw)
         asc, desc = fnt.getmetrics()
         line_h = (asc + desc) * lh
-        if line_h * len(lines) <= bh and all(draw.textlength(l, font=fnt) <= bw for l in lines):
+        if line_h * len(lines) <= bh and all(
+                draw.textlength(l, font=fnt) <= bw for l in lines):
             return fnt, lines, line_h
         size = int(size * 0.93)
     fnt = font(min_px, weight)
@@ -84,13 +104,13 @@ def _scrim(img, box_px, dark, pad=0.12, radius=26, alpha=140):
     pw, ph = (x1 - x0) * pad, (y1 - y0) * pad
     layer = Image.new("RGBA", img.size, (0, 0, 0, 0))
     col = (0, 0, 0, alpha) if dark else (255, 255, 255, int(alpha * 1.3))
-    ImageDraw.Draw(layer).rounded_rectangle([x0 - pw, y0 - ph, x1 + pw, y1 + ph],
-                                            radius=radius, fill=col)
+    ImageDraw.Draw(layer).rounded_rectangle(
+        [x0 - pw, y0 - ph, x1 + pw, y1 + ph], radius=radius, fill=col)
     img.alpha_composite(layer.filter(ImageFilter.GaussianBlur(3)))
 
 
-def _draw_text(img, box_px, text, *, weight, color, align, start, lh=1.16,
-               scrim=None, accent_bar=None):
+def _photo_text(img, box_px, text, *, weight, color, align, start, lh=1.16,
+                scrim=None):
     draw = ImageDraw.Draw(img)
     x0, y0, x1, y1 = box_px
     bw, bh = max(1, x1 - x0), max(1, y1 - y0)
@@ -100,10 +120,6 @@ def _draw_text(img, box_px, text, *, weight, color, align, start, lh=1.16,
     fnt, lines, line_h = _fit(draw, text, bw, bh, weight, start, lh=lh)
     total = line_h * len(lines)
     y = y0 + (bh - total) / 2
-    if accent_bar is not None and lines:
-        bw_bar = max(5, int(bw * 0.014))
-        draw.rounded_rectangle([x0 - bw_bar * 2, y + 4, x0 - bw_bar, y + total - 4],
-                               radius=bw_bar, fill=accent_bar)
     for ln in lines:
         tw = draw.textlength(ln, font=fnt)
         x = {"left": x0, "center": x0 + (bw - tw) / 2, "right": x1 - tw}[align]
@@ -111,31 +127,33 @@ def _draw_text(img, box_px, text, *, weight, color, align, start, lh=1.16,
         y += line_h
 
 
-def _eyebrow(img, box_px, text, color, align):
-    draw = ImageDraw.Draw(img)
-    x0, y0, x1, y1 = box_px
-    h = int((y1 - y0) * 0.72)
-    fnt = font(max(14, h), "SemiBold")
-    # leading accent dot
-    dot = h * 0.5
-    draw.ellipse([x0, y0 + (y1 - y0 - dot) / 2, x0 + dot, y0 + (y1 - y0 + dot) / 2], fill=color)
-    draw.text((x0 + dot * 1.6, y0 + (y1 - y0 - (sum(fnt.getmetrics()))) / 2),
-              text, font=fnt, fill=color)
-
-
-def _rule(img, box_px, color):
-    x0, y0, x1, y1 = box_px
-    ImageDraw.Draw(img).rounded_rectangle([x0, y0, x1, max(y0 + 4, y1)],
-                                          radius=3, fill=color)
-
-
-def _logo(img, box_px, text, color, align):
-    draw = ImageDraw.Draw(img)
-    x0, y0, x1, y1 = box_px
-    fnt = font(max(14, int((y1 - y0) * 0.7)), "Bold")
-    tw = draw.textlength(text, font=fnt)
-    x = {"left": x0, "center": x0 + ((x1 - x0) - tw) / 2, "right": x1 - tw}[align]
-    draw.text((x, y0), text, font=fnt, fill=color)
+def _render_photo(title, body, background, theme, eyebrow, brand, page, total,
+                  size):
+    th = theme
+    bg = background if isinstance(background, Image.Image) \
+        else Image.open(background)
+    base = cover_fit(bg.convert("RGB"), size).convert("RGBA")
+    W, H = size
+    slots = TP.get("bottom")
+    content = {"eyebrow": eyebrow, "title": title, "body": body, "logo": brand}
+    for role, x0, y0, x1, y1, align in slots:
+        box = (x0 * W, y0 * H, x1 * W, y1 * H)
+        text = content.get(role)
+        if not text:
+            continue
+        dark = region_luma(base.convert("RGB"), box) < 130
+        fg = (255, 255, 255) if dark else (24, 24, 24)
+        if role == "title":
+            _photo_text(base, box, text, weight="Bold", color=fg, align=align,
+                        start=0.62, lh=1.12, scrim=dark)
+        elif role == "body":
+            _photo_text(base, box, text, weight="Regular", color=fg,
+                        align=align, start=0.30, lh=1.45, scrim=dark)
+        elif role == "logo":
+            C.brand_mark(base, box, text, th, align="right")
+    if page and total:
+        _page_badge(base, page, total, (255, 255, 255))
+    return base.convert("RGB")
 
 
 def _page_badge(img, idx, total, color):
@@ -147,70 +165,118 @@ def _page_badge(img, idx, total, color):
     draw.text((w - tw - 46, h - 60), t, font=fnt, fill=color)
 
 
-# ---------- main API ----------
-def generate_card(title, body=None, *, background=None, theme="auto",
-                  template="auto", eyebrow=None, logo_text="BRAND",
-                  page=None, total=None, size=SIZE, seed=0):
-    """Render one card-news image. Returns a PIL RGB image (1080x1350)."""
-    th = TH.pick(seed) if theme in (None, "auto") else TH.get(theme)
-    has_photo = background is not None
+# ---------- rich themed path ----------
+def _eyebrow_label(img, x_center, y, text, theme):
+    """Small uppercase label with leading dot (e.g. a 'NEW' kicker)."""
+    draw = ImageDraw.Draw(img)
+    col = theme.get("title_accent", theme["accent"])
+    fnt = font(max(20, int(img.size[0] * 0.026)), "Bold")
+    tw = draw.textlength(text, font=fnt)
+    dot = fnt.size * 0.5
+    total = dot * 1.5 + tw
+    x = x_center - total / 2
+    asc, desc = fnt.getmetrics()
+    cy = y + (asc + desc) / 2
+    draw.ellipse([x, cy - dot / 2, x + dot, cy + dot / 2], fill=col + (255,))
+    draw.text((x + dot * 1.5, y), text, font=fnt, fill=col + (255,))
 
-    # background layer
-    if has_photo:
-        bg = background if isinstance(background, Image.Image) else Image.open(background)
-        base = cover_fit(bg.convert("RGB"), size).convert("RGBA")
-    else:
-        base = gradient(size, th["bg"][0], th["bg"][-1], th.get("angle", 90)).convert("RGBA")
-        accent_blob(base, th["accent"], seed)
 
-    # template
-    slots = TP.get(template) if template not in (None, "auto") else TP.auto(title, body or "", has_photo)
+def _render_rich(title, subtitle, checklist, theme, kind, eyebrow, brand,
+                 mascot, page, total, size, seed):
     W, H = size
-    content = {"eyebrow": eyebrow, "title": title, "body": body, "logo": logo_text}
+    base = themed_background(size, theme, seed)
 
-    for role, x0, y0, x1, y1, align in slots:
-        box = (x0 * W, y0 * H, x1 * W, y1 * H)
-        if role == "rule":
-            _rule(base, box, th["accent"]); continue
-        text = content.get(role)
-        if not text:
-            continue
-        if has_photo:
-            dark = region_luma(base.convert("RGB"), box) < 130
-            fg = (255, 255, 255) if dark else (24, 24, 24)
-            scrim = dark
-        else:
-            scrim = None
-        if role == "eyebrow":
-            _eyebrow(base, box, text, th["accent"] if not has_photo else (fg), align)
-        elif role == "title":
-            _draw_text(base, box, text, weight="Bold",
-                       color=(fg if has_photo else th["title"]), align=align,
-                       start=0.62, lh=1.12, scrim=scrim,
-                       accent_bar=th["accent"] if align == "left" else None)
-        elif role == "body":
-            _draw_text(base, box, text, weight="Regular",
-                       color=(fg if has_photo else th["body"]), align=align,
-                       start=0.30, lh=1.45, scrim=scrim)
-        elif role == "logo":
-            _logo(base, box, text, th["accent"] if not has_photo else fg, align)
+    # brand mark, top-right
+    if brand:
+        C.brand_mark(base, (0.60 * W, 0.045 * H, 0.95 * W, 0.095 * H),
+                     brand, theme, align="right")
+
+    if kind == "cover":
+        if mascot:
+            C.speech_bubble(base, (0.80 * W, 0.20 * H), 0.10 * W, theme,
+                            mascot=mascot)
+        if eyebrow:
+            _eyebrow_label(base, W / 2, 0.345 * H, eyebrow, theme)
+        bottom = C.glow_title(base, (0.06 * W, 0.40 * H, 0.94 * W, 0.62 * H),
+                              title, theme, start_frac=0.5)
+        if subtitle:
+            C.subtitle(base, (0.14 * W, bottom + 0.025 * H, 0.86 * W,
+                              bottom + 0.13 * H),
+                       subtitle, theme, base_color=theme["title"],
+                       start_frac=0.6)
+
+    elif kind == "checklist":
+        bottom = C.glow_title(base, (0.06 * W, 0.07 * H, 0.94 * W, 0.27 * H),
+                              title, theme, start_frac=0.5)
+        if subtitle:
+            bottom = C.subtitle(
+                base, (0.10 * W, bottom + 0.015 * H, 0.90 * W, 0.42 * H),
+                subtitle, theme, start_frac=0.22)
+        top = max(bottom + 0.03 * H, 0.46 * H)
+        C.checklist_panel(base, (0.08 * W, top, 0.92 * W, 0.92 * H),
+                          checklist, theme)
+
+    else:  # statement: title + subtitle, centered
+        bottom = C.glow_title(base, (0.06 * W, 0.24 * H, 0.94 * W, 0.50 * H),
+                              title, theme, start_frac=0.5)
+        if subtitle:
+            C.subtitle(base, (0.12 * W, bottom + 0.03 * H, 0.88 * W, 0.80 * H),
+                       subtitle, theme, start_frac=0.22)
 
     if page and total:
-        _page_badge(base, page, total, th["body"] if not has_photo else (255, 255, 255))
+        _page_badge(base, page, total, theme.get("body", (255, 255, 255)))
     return base.convert("RGB")
 
 
-def generate_deck(items, *, theme="auto", logo_text="BRAND", background=None, seed=0):
-    """items: list of dicts {title, body?, eyebrow?}. First item -> cover.
-    Returns list of PIL images. Same theme across the deck for consistency."""
-    th_name = TH.ORDER[seed % len(TH.ORDER)] if theme in (None, "auto") else theme
+# ---------- main API ----------
+def generate_card(title, body=None, *, subtitle=None, checklist=None,
+                  background=None, theme="auto", kind="auto", eyebrow=None,
+                  brand="BRAND", logo_text=None, mascot=None, page=None,
+                  total=None, size=SIZE, seed=0):
+    """Render one card-news image -> PIL RGB.
+
+    title     : may contain "\\n"; even lines render white, odd lines accent.
+    subtitle  : supports *keyword* markup (accent-highlighted runs).
+    checklist : list[str] -> white rounded panel with accent checks.
+    background: a photo path/Image routes through the photo renderer.
+    kind      : auto|cover|checklist|statement (auto picks from content).
+    """
+    th = TH.pick(seed) if theme in (None, "auto") else TH.get(theme)
+    brand = logo_text if logo_text is not None else brand  # back-compat
+    sub = subtitle if subtitle is not None else body
+
+    if background is not None:
+        return _render_photo(title, sub, background, th, eyebrow, brand,
+                             page, total, size)
+
+    if kind in (None, "auto"):
+        if checklist:
+            kind = "checklist"
+        elif not sub:
+            kind = "cover"
+        else:
+            kind = "statement"
+    return _render_rich(title, sub, checklist, th, kind, eyebrow, brand,
+                        mascot, page, total, size, seed)
+
+
+def generate_deck(items, *, theme="auto", brand="BRAND", logo_text=None,
+                  background=None, mascot=None, size=SIZE, seed=0):
+    """items: list of dicts {title, subtitle?/body?, checklist?, eyebrow?}.
+    First item -> cover. One theme + one deco seed across the deck."""
+    th_name = TH.ORDER[seed % len(TH.ORDER)] if theme in (None, "auto") \
+        else theme
+    brand = logo_text if logo_text is not None else brand
     n = len(items)
     cards = []
     for i, it in enumerate(items):
-        tmpl = "cover" if i == 0 else "auto"
+        kind = "cover" if i == 0 else "auto"
         cards.append(generate_card(
             it.get("title", ""), it.get("body"),
-            background=background, theme=th_name, template=tmpl,
-            eyebrow=it.get("eyebrow"), logo_text=logo_text,
-            page=(None if i == 0 else i + 1), total=(None if i == 0 else n), seed=seed))
+            subtitle=it.get("subtitle"), checklist=it.get("checklist"),
+            background=background, theme=th_name, kind=kind,
+            eyebrow=it.get("eyebrow"), brand=brand,
+            mascot=(mascot if i == 0 else None),
+            page=(None if i == 0 else i + 1), total=(None if i == 0 else n),
+            size=size, seed=seed))
     return cards

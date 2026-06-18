@@ -1,0 +1,8 @@
+# Service + reference-library deps (local tier, no torch).
+# Engine/features already rely on the root deps: pillow, numpy, opencv-python.
+fastapi>=0.110
+uvicorn[standard]>=0.27
+
+# RunPod / semantic tier (optional, install where torch is available):
+#   open_clip_torch  torch  torchvision   # reflib/embed_clip.py
+#   ultralytics                            # reflib/tag_layout.py

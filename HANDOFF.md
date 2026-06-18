@@ -39,8 +39,16 @@ made it — NOT "AI-tic".
 - `paper/` — CVPR-style LaTeX (`main.tex`, `refs.bib`, `figures/`). A background
   agent was building `paper/build_pdf.py` → `paper/cardnews_paper.pdf` + `paper/README.md`
   (check if it finished; Overleaf is the submission path).
-- `service/cardgen/` — engine v1 (assets/themes/templates/placement/render).
-  **Output judged too generic / "AI-tic"** vs references → being redesigned.
+- `service/cardgen/` — **engine v2 DONE** (assets/themes/templates/placement/
+  render + new `components.py`). Matches the EPIS reference look: dark vignette
+  bg + consistent scattered deco + two-tone GLOW title (white line + accent
+  line, per-line halo) + *keyword*-highlighted subtitle (word-aware wrap) +
+  white rounded checklist panel (light-tint check boxes + accent check mark +
+  dotted dividers, balanced 2-line wrapping) + brand mark + vector tomato
+  mascot in a speech bubble. `kind=cover|checklist|statement` (auto from
+  content). Photo path kept from v1. Verified locally `py -3 service/demo.py`
+  → `service/out/` (square 1080² deck + per-theme cards). Old v1 output was
+  judged too generic / "AI-tic"; this closes that gap.
 
 ## Reference design language (from the corpus — MATCH THIS)
 Example: `newData(smartFarmKorea)/Card News_Tomato Education/`. Real gov/agri
@@ -54,16 +62,38 @@ render.py still needs the component rewrite (scatter, glow two-tone title,
 white panel + checklist, keyword highlight).
 
 ## NEXT STEPS (priority order)
-1. **Reference library + retrieval (the real product/ML core):**
-   - Index all images: detector → layout-type tag; color/palette extract; CLIP
-     embeddings for semantic search; cluster into archetypes.
-   - Search API: text query / filters (topic, color, layout) → ranked refs.
+1. **Reference library + retrieval (the real product/ML core): DONE local tier**
+   (2026-06-18). `reflib/` indexes all 687 imgs → `reflib/data/index.json`
+   (filename meta + palette/brightness/edge/dark + color/feel vector), clusters
+   into archetypes (`cluster.py`), and serves search (`search.py`,
+   `ReferenceLibrary`): lexical text, color, filters (dark/cover/source/cluster),
+   `similar_to`. Runs today with NO torch (`py -3 reflib/build_index.py` →
+   `cluster.py` → `search.py`). RunPod hooks WRITTEN, NOT YET RUN:
+   `reflib/embed_clip.py` (CLIP semantic embeddings) + `reflib/tag_layout.py`
+   (detector layout signature per ref — this is also the indexing half of step 2).
+   After CLIP build, similar/cluster auto-upgrade to semantic. See `reflib/README.md`.
 2. **Layout extraction from ANY selected reference** (generalize copy_layout.py
    beyond committed labels → run detector live; needs torch on RunPod or local).
-3. **Engine v2 components** to hit reference quality: scatter deco, two-tone glow
-   title, white panel + checklist, keyword highlight, brand/mascot slot.
-4. **Service**: FastAPI `POST /generate` + search endpoints + simple web UI
-   (search → select reference → auto-fill text → edit → export deck).
+3. ~~Engine v2 components to hit reference quality~~ **DONE** (2026-06-18) —
+   but NOTE THE ROLE: v2 is the **RENDERER (quality layer), one hand-authored
+   archetype**, NOT the product. The product needs **one layout template per
+   reference in the dataset** (≈687 imgs / 66 deck archetypes), extracted by the
+   detector, not hand-coded. Pipeline = detector → extract slots/structure from
+   each ref → store as template (library) → user searches/selects → copy that
+   template → refill with user text → render with v2 components. So engine
+   count == dataset size (via extraction), and steps 1–2 ARE the real engine.
+   `copy_layout.py` is the seed of this; live detector extraction needs
+   torch/RunPod. v2 polish ideas (lower priority): more deco icons, real mascot
+   art, per-segment theme presets, topic→theme auto-pick.
+4. **Service: DONE local-verifiable** (2026-06-18). `service/app.py` (FastAPI) +
+   `service/static/index.html`: `/api/search`, `/api/similar/{id}`,
+   `/api/clusters`, `/api/reference/{id}`, `POST /api/generate` (PNG),
+   `POST /api/deck` (zip). Web UI = search → select (theme auto-applied from the
+   ref palette) → auto-fill text → generate → preview → deck export. Run:
+   `py -3 -m uvicorn service.app:app --reload --port 8000` (deps:
+   `pip install fastapi "uvicorn[standard]"`). NOTE: auto-fill currently copies
+   tone/theme only; copying the actual per-reference LAYOUT is gated on step 2
+   (live detector extraction) — that wiring is the next real-engine milestone.
 5. RunPod runbook (RUNPOD_GENERATION.md) for detector/DS-GAN/labeling.
 
 ## Customer segments (planning)
@@ -72,6 +102,9 @@ white panel + checklist, keyword highlight).
 auto-fill → export deck.
 
 ## How to run (local, no torch)
+- Build reference library: `py -3 reflib/build_index.py` then `py -3 reflib/cluster.py --k 8`
+- Search refs (CLI): `py -3 reflib/search.py --text "smart farm" --dark --k 8`
+- Service + web UI: `py -3 -m uvicorn service.app:app --reload --port 8000` → http://127.0.0.1:8000/
 - New cards demo: `py -3 service/demo.py` → `service/out/`
 - Layout-copy demo: `py -3 gen/copy_layout.py --n 4` → `gen_output/copy/`
 - Deck time-series: `py -3 analysis/deck_dynamics.py` → `analysis/`

@@ -14,3 +14,8 @@ Dataset/
 data_cmp/
 
 service/out/
+
+# reflib: index.json is committed (small, search works offline); CLIP
+# embeddings are regenerated on RunPod (large binary, index-order specific)
+reflib/data/clip.npy
+reflib/data/clip_ids.json
