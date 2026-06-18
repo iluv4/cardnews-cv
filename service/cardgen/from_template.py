@@ -89,20 +89,30 @@ def render_from_template(t, title, *, subtitle=None, checklist=None,
     blocks = t["blocks"]
     titles, bodies = blocks.get("title", []), blocks.get("body", [])
 
+    # resolve the body/panel region first, so a multi-line refilled title can be
+    # clamped to stop above it (refill text rarely matches the original length).
+    body_box = None
+    if bodies:
+        if checklist:
+            body_box = _px(_union(bodies), W, H, pad=0.06)
+        elif subtitle:
+            body_box = _px(bodies[0], W, H, pad=0.25)
+
     if titles:
-        box = _px(_union(titles), W, H, pad=0.12)
+        x0, y0, x1, y1 = _px(_union(titles), W, H, pad=0.12)
         # give a short title block a little more height to breathe
-        x0, y0, x1, y1 = box
         if (y1 - y0) < 0.12 * H:
             y1 = y0 + 0.12 * H
+        if body_box is not None:                 # never overlap the panel/body
+            y1 = min(y1, body_box[1] - 0.02 * H)
+            if (y1 - y0) < 0.08 * H:              # keep a sane minimum height
+                y1 = y0 + 0.08 * H
         C.glow_title(base, (x0, y0, x1, y1), title, th, start_frac=0.62)
 
     if checklist and bodies:
-        box = _px(_union(bodies), W, H, pad=0.06)
-        C.checklist_panel(base, box, checklist, th)
+        C.checklist_panel(base, body_box, checklist, th)
     elif subtitle and bodies:
-        box = _px(bodies[0], W, H, pad=0.25)
-        C.subtitle(base, box, subtitle, th, start_frac=0.5)
+        C.subtitle(base, body_box, subtitle, th, start_frac=0.5)
 
     if brand:
         C.brand_mark(base, (0.60 * W, 0.04 * H, 0.95 * W, 0.092 * H), brand, th)

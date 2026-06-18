@@ -36,6 +36,9 @@
   .card img { width:100%; aspect-ratio:1; object-fit:cover; display:block; }
   .card .meta { padding:6px 8px; font-size:11px; color:var(--muted);
                 white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .card .tpl { position:absolute; top:6px; left:6px; background:var(--accent2);
+               color:#06291f; font-size:10px; font-weight:700; padding:2px 6px;
+               border-radius:6px; }
   .card .pal { display:flex; height:5px; }
   .card .pal i { flex:1; }
   label { font-size:12px; color:var(--muted); display:block; margin:10px 0 4px; }
@@ -131,8 +134,9 @@ function render(data) {
     el.className = 'card' + (selected === r.id ? ' sel' : '');
     const pal = (r.palette || []).slice(0,5)
       .map(c => `<i style="background:rgb(${c[0]},${c[1]},${c[2]})"></i>`).join('');
+    const badge = r.has_template ? '<div class="tpl">레이아웃</div>' : '';
     el.innerHTML =
-      `<img loading="lazy" src="/api/reference/${encodeURIComponent(r.id)}">
+      `<img loading="lazy" src="/api/reference/${encodeURIComponent(r.id)}">${badge}
        <div class="pal">${pal}</div>
        <div class="meta">${r.theme} · ${r.dark?'dark':'light'} · ${r.deck.slice(0,22)}</div>`;
     el.onclick = () => select(r, el);
@@ -141,28 +145,37 @@ function render(data) {
 }
 
 function select(r, el) {
-  selected = r.id;
+  selected = r;
   document.querySelectorAll('.card').forEach(c => c.classList.remove('sel'));
   el.classList.add('sel');
   document.getElementById('theme').value = r.theme;
-  document.getElementById('selinfo').textContent =
-    `선택: ${r.id}  → 테마 "${r.theme}" 자동 적용`;
+  document.getElementById('selinfo').textContent = r.has_template
+    ? `선택: ${r.id} → 이 레퍼런스의 실제 레이아웃을 복사해 채웁니다`
+    : `선택: ${r.id} → 템플릿 없음, 테마 "${r.theme}"로 생성`;
 }
 
 async function generate() {
-  const body = {
-    title: document.getElementById('title').value.replace(/\\n/g, '\n'),
-    subtitle: document.getElementById('subtitle').value || null,
-    checklist: document.getElementById('checklist').value.split('\n').map(s=>s.trim()).filter(Boolean),
-    theme: document.getElementById('theme').value,
-    brand: document.getElementById('brand').value || null,
-    size: 1080,
-  };
-  if (!body.checklist.length) body.checklist = null;
-  const r = await fetch('/api/generate', {
+  const title = document.getElementById('title').value.replace(/\\n/g, '\n');
+  const subtitle = document.getElementById('subtitle').value || null;
+  let checklist = document.getElementById('checklist').value.split('\n').map(s=>s.trim()).filter(Boolean);
+  if (!checklist.length) checklist = null;
+  const brand = document.getElementById('brand').value || null;
+
+  let url, body;
+  if (selected) {                 // copy the chosen reference's layout (or themed fallback)
+    url = '/api/generate_from_ref';
+    body = { ref_id: selected.id, title, subtitle, checklist, brand, size: 1080 };
+  } else {                        // no selection -> manual theme
+    url = '/api/generate';
+    body = { title, subtitle, checklist, theme: document.getElementById('theme').value, brand, size: 1080 };
+  }
+  const r = await fetch(url, {
     method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
   if (!r.ok) { alert('생성 실패: ' + await r.text()); return; }
+  const mode = r.headers.get('X-Render-Mode');
   document.getElementById('preview').src = URL.createObjectURL(await r.blob());
+  if (mode) document.getElementById('selinfo').textContent =
+    `생성 완료 (${mode === 'template' ? '레이아웃 복사' : '테마 폴백'})`;
 }
 
 search();

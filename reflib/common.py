@@ -16,8 +16,12 @@ import glob
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 EXTS = (".png", ".jpg", ".jpeg")
 
-# Default corpus dirs (relative to ROOT), in priority order.
-CORPUS_DIRS = ("images_new", "images")
+# Default corpus dirs (relative to ROOT), in priority order. The dataset/ dirs
+# are the labeled seed set: their stems (img_NNN) match the template-library ids
+# (service/library/templates.json), so indexing them makes template-backed
+# references searchable + selectable in the service until RunPod extends
+# templates to the full descriptive-named corpus.
+CORPUS_DIRS = ("images_new", "images", "dataset/images/train", "dataset/images/val")
 
 INDEX_DIR = os.path.join(ROOT, "reflib", "data")
 INDEX_PATH = os.path.join(INDEX_DIR, "index.json")
