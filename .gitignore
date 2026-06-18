@@ -19,3 +19,6 @@ service/out/
 # embeddings are regenerated on RunPod (large binary, index-order specific)
 reflib/data/clip.npy
 reflib/data/clip_ids.json
+
+# reflib thumbnail cache (regenerated on demand)
+reflib/data/thumbs/

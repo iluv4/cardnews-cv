@@ -83,9 +83,14 @@ def _slim(rec):
 @app.get("/api/search")
 def api_search(text: str = None, color: str = None, dark: bool = None,
                cover: bool = None, cluster: int = None, source: str = None,
-               k: int = 24):
+               only_templates: bool = False, k: int = 24):
+    # when filtering to template-backed refs, over-fetch then keep the copyable ones
     res = lib().query(text=text, color=color, dark=dark, cover=cover,
-                      cluster=cluster, source=source, k=k)
+                      cluster=cluster, source=source,
+                      k=(k * 6 if only_templates else k))
+    if only_templates:
+        tids = templates()
+        res = [r for r in res if r["id"] in tids][:k]
     return {"count": len(res), "results": [_slim(r) for r in res]}
 
 
@@ -103,14 +108,28 @@ def api_clusters():
     return lib().index.get("clusters", {})
 
 
+THUMB_DIR = os.path.join(ROOT, "reflib", "data", "thumbs")
+
+
 @app.get("/api/reference/{ref_id}")
-def api_reference(ref_id: str):
+def api_reference(ref_id: str, w: int = 0):
+    """Serve a reference image. With ?w=N, serve a cached N-px JPEG thumbnail
+    (grid uses this — much faster than streaming full-size jpgs)."""
     rec = lib().by_id.get(ref_id)
     if not rec:
         raise HTTPException(404, f"unknown reference {ref_id}")
     p = os.path.join(ROOT, rec["path"])
     if not os.path.exists(p):
         raise HTTPException(404, "image file missing")
+    if w and w > 0:
+        from PIL import Image
+        os.makedirs(THUMB_DIR, exist_ok=True)
+        tp = os.path.join(THUMB_DIR, f"{ref_id}_{w}.jpg")
+        if not os.path.exists(tp):
+            im = Image.open(p).convert("RGB")
+            im.thumbnail((w, w * 2))
+            im.save(tp, "JPEG", quality=82)
+        return FileResponse(tp)
     return FileResponse(p)
 
 

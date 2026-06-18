@@ -74,6 +74,7 @@
       <input id="color" placeholder="#15402b" style="width:110px">
       <button type="button" class="chip" data-f="dark" aria-pressed="false">다크</button>
       <button type="button" class="chip" data-f="cover" aria-pressed="false">표지</button>
+      <button type="button" class="chip" data-f="tpl" aria-pressed="false">레이아웃만</button>
       <button type="button" onclick="search()">검색</button>
       <button type="button" onclick="reset()">초기화</button>
     </div>
@@ -106,7 +107,7 @@
 </main>
 
 <script>
-const F = { dark:false, cover:false };
+const F = { dark:false, cover:false, tpl:false };
 let selected = null;
 
 document.querySelectorAll('.chip').forEach(c => c.onclick = () => {
@@ -123,6 +124,7 @@ function qs() {
   if (c) p.set('color', c);
   if (F.dark) p.set('dark', 'true');
   if (F.cover) p.set('cover', 'true');
+  if (F.tpl) p.set('only_templates', 'true');
   p.set('k', '36');
   return p.toString();
 }
@@ -134,7 +136,7 @@ async function search() {
 function reset() {
   document.getElementById('q').value = '';
   document.getElementById('color').value = '';
-  F.dark = F.cover = false;
+  F.dark = F.cover = F.tpl = false;
   document.querySelectorAll('.chip').forEach(c => c.setAttribute('aria-pressed', 'false'));
   search();
 }
@@ -155,7 +157,7 @@ function render(data) {
       .map(c => `<i style="background:rgb(${c[0]},${c[1]},${c[2]})"></i>`).join('');
     const badge = r.has_template ? '<div class="tpl">레이아웃</div>' : '';
     el.innerHTML =
-      `<img loading="lazy" alt="레퍼런스 미리보기: ${r.deck}" src="/api/reference/${encodeURIComponent(r.id)}">${badge}
+      `<img loading="lazy" alt="레퍼런스 미리보기: ${r.deck}" src="/api/reference/${encodeURIComponent(r.id)}?w=320">${badge}
        <div class="pal" aria-hidden="true">${pal}</div>
        <div class="meta">${r.theme} · ${r.dark?'dark':'light'} · ${r.deck.slice(0,22)}</div>`;
     el.onclick = () => select(r, el);
