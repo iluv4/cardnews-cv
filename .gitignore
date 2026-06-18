@@ -29,3 +29,6 @@ data_export/
 
 # RunPod artifact bundle
 reflib_artifacts.tar.gz
+
+# Claude Code session/agent internals
+.claude/
