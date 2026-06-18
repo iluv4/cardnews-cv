@@ -27,7 +27,17 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) 
 from common import ROOT, load_yolo                                      # gen/common.py
 from extract_templates import (merge, palette, bg_color, luma,          # reuse helpers
                                aspect_tag, classify, align_of, OUT_DIR)
-from reflib import common as rc                                         # same corpus + ids
+
+# reflib/common.py and gen/common.py are both named `common`; importing the
+# reflib *package* would pull reflib/__init__ -> search.py, which does a bare
+# `import common` and picks up the already-cached gen/common (collision). Load
+# reflib/common.py directly as its own module instead — same corpus + ids, no
+# package side effects.
+import importlib.util as _ilu                                            # noqa: E402
+_rc_path = os.path.join(ROOT, "reflib", "common.py")
+_spec = _ilu.spec_from_file_location("reflib_common", _rc_path)
+rc = _ilu.module_from_spec(_spec)
+_spec.loader.exec_module(rc)
 
 
 def detect_blocks(model, img, conf, imgsz):

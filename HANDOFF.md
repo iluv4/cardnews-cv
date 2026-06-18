@@ -68,20 +68,30 @@ white panel + checklist, keyword highlight).
    into archetypes (`cluster.py`), and serves search (`search.py`,
    `ReferenceLibrary`): lexical text, color, filters (dark/cover/source/cluster),
    `similar_to`. Runs today with NO torch (`py -3 reflib/build_index.py` →
-   `cluster.py` → `search.py`). RunPod hooks WRITTEN, NOT YET RUN:
-   `reflib/embed_clip.py` (CLIP semantic embeddings) + `reflib/tag_layout.py`
-   (detector layout signature per ref — this is also the indexing half of step 2).
-   After CLIP build, similar/cluster auto-upgrade to semantic. See `reflib/README.md`.
-2. **Layout extraction from ANY selected reference: LOCAL PROOF DONE** (2026-06-18),
-   RunPod extension TODO. `gen/extract_templates.py` turns the committed labels
-   into a refillable template per card → `service/library/templates.json` (95
-   templates from the 109 labeled imgs); `service/cardgen/from_template.py`
+   `cluster.py` → `search.py`). **CLIP + layout tags now BUILT LOCALLY**
+   (2026-06-18, CPU torch — torch IS runnable locally for inference, no RunPod
+   needed): `reflib/embed_clip.py --build` → `reflib/data/clip.npy` [796×512]
+   (gitignored; regenerate locally), `reflib/tag_layout.py` → per-record `layout`
+   signature in index.json (top: title-top|body-bot 167, title-top|body-mid 128…),
+   `reflib/cluster.py --k 8` re-run on CLIP (basis=clip, baked into committed
+   index.json). `similar_to` auto-uses CLIP when clip.npy is present; cluster filter
+   is semantic. Text search stays lexical on purpose (ViT-B-32 laion2b is English).
+   See `reflib/README.md`.
+2. **Layout extraction from ANY selected reference: DONE (FULL CORPUS, LOCAL)**
+   (2026-06-18). `gen/extract_templates.py` turns the committed labels into a
+   refillable template per card; **`gen/extract_templates_detector.py` now ran the
+   trained detector over the full 796-img corpus locally (CPU torch, ~2 min) →
+   `service/library/templates.json` = 763 templates** (was 95), covering 763/796
+   indexed refs (archetypes cover=216, list=271, statement=276; the 33 misses had
+   no detections → theme fallback). `service/cardgen/from_template.py`
    (`render_from_template`) copies a template's actual title/body blocks + palette
-   and refills with user text; `gen/refill_demo.py` proves the loop. Wired into the
-   service (`/api/generate_from_ref`, see step 4). REMAINING = run the trained
-   detector over the full 687-corpus on RunPod to extract a template for EVERY
-   searchable ref (identical render path, no code change) so every selection — not
-   just the 95 labeled — copies a real layout.
+   and refills with user text. Verified: smart-farm search returns 24/24
+   template-backed, deck render mode=`template`. So **the deck workflow's "레이아웃
+   복사" is now the norm, theme fallback the exception (4%)**. NOTE: two RunPod-era
+   scripts had to be fixed to run locally — `extract_templates_detector.py`
+   (gen/common vs reflib/common name collision; now loads reflib/common via
+   importlib) and `reflib/tag_layout.py` (added ROOT to sys.path for
+   `from gen.common import load_yolo`). Detector weights: `results/best_model/best.pt`.
 3. ~~Engine v2 components to hit reference quality~~ **DONE** (2026-06-18) —
    but NOTE THE ROLE: v2 is the **RENDERER (quality layer), one hand-authored
    archetype**, NOT the product. The product needs **one layout template per
