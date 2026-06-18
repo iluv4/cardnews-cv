@@ -3,9 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>카드뉴스 스튜디오 · 레퍼런스 검색 → 카드 생성</title>
-<link rel="preconnect" href="https://cdn.jsdelivr.net">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<title>카드뉴스 스튜디오 · 제작 워크플로우</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<!-- non-render-blocking: the system/Malgun fallback in --font shows instantly,
+     Pretendard swaps in once fetched (also keeps the page usable offline). -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css"
+      media="print" onload="this.media='all'">
+<noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css"></noscript>
 <style>
   :root {
     --bg:#0b1812; --bg2:#0e1f17; --panel:#12251c; --panel2:#162c21;
@@ -23,59 +27,110 @@
       linear-gradient(180deg, var(--bg2), var(--bg)); }
   ::selection { background:var(--accent); color:var(--ink); }
 
-  /* top bar */
-  .topbar { display:flex; align-items:center; gap:16px; padding:16px 26px;
-    border-bottom:1px solid var(--line); backdrop-filter:blur(6px); }
+  /* ---- top bar + stepper ---- */
+  .topbar { display:flex; align-items:center; gap:22px; padding:14px 26px;
+    border-bottom:1px solid var(--line); backdrop-filter:blur(6px);
+    position:sticky; top:0; z-index:5; background:rgba(11,24,18,.72); }
   .brand { display:flex; align-items:center; gap:10px; font-size:17px; font-weight:800;
-    letter-spacing:-.01em; }
-  .brand b { color:var(--accent); font-weight:800; }
+    letter-spacing:-.01em; white-space:nowrap; }
+  .brand b { color:var(--accent); }
   .brand .dot { width:11px; height:11px; border-radius:50%; background:var(--accent);
     box-shadow:0 0 14px 2px rgba(247,136,154,.7); }
-  .tagline { color:var(--muted); font-size:12.5px; }
 
-  .wrap { display:grid; grid-template-columns:1fr 392px; gap:0; height:calc(100vh - 65px); }
-  .left { padding:22px 26px; overflow:auto; }
-  .right { border-left:1px solid var(--line); padding:22px 24px; overflow:auto;
-    background:linear-gradient(180deg, rgba(22,44,33,.6), rgba(15,31,23,.4)); }
+  .stepper { display:flex; gap:6px; flex:1; align-items:center; overflow:auto; }
+  .stepbtn { display:flex; align-items:center; gap:9px; border:1px solid transparent;
+    background:transparent; color:var(--muted); border-radius:999px; padding:7px 14px;
+    font:inherit; font-weight:700; cursor:pointer; transition:.14s; white-space:nowrap; }
+  .stepbtn .n { display:grid; place-items:center; width:22px; height:22px; flex:none;
+    border-radius:50%; background:#16291f; border:1px solid var(--line2);
+    font-size:12px; font-weight:800; }
+  .stepbtn:hover:not(:disabled) { color:var(--fg); }
+  .stepbtn[aria-current="true"] { background:#16291f; border-color:var(--line2); color:var(--fg); }
+  .stepbtn[aria-current="true"] .n { background:var(--accent); color:var(--ink); border-color:transparent; }
+  .stepbtn.done .n { background:var(--mint); color:#06291f; border-color:transparent; }
+  .stepbtn:disabled { opacity:.45; cursor:not-allowed; }
 
-  /* search bar */
-  .searchbar { display:flex; flex-wrap:wrap; gap:10px; align-items:center;
-    padding:10px; border:1px solid var(--line); background:rgba(18,37,28,.6);
-    border-radius:16px; margin-bottom:16px; }
-  .field { display:flex; align-items:center; gap:8px; flex:2; min-width:220px;
-    background:#0c1812; border:1px solid var(--line); border-radius:11px; padding:0 12px; }
-  .field svg { flex:none; opacity:.6; }
-  .field input { flex:1; border:0; background:transparent; color:var(--fg);
-    padding:11px 0; font:inherit; }
-  .field input:focus { outline:none; }
-  .field:focus-within { border-color:var(--accent); }
-  input.color { width:120px; background:#0c1812; border:1px solid var(--line);
-    border-radius:11px; padding:11px 12px; color:var(--fg); font:inherit; }
+  /* ---- layout ---- */
+  .stage { max-width:1180px; margin:0 auto; padding:26px 26px 110px; }
+  .panel { display:none; }
+  .panel.active { display:block; animation:fade .18s ease; }
+  @keyframes fade { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
+  h1.title { font-size:22px; margin:0 0 4px; letter-spacing:-.02em; }
+  p.sub { color:var(--muted); margin:0 0 22px; font-size:13px; }
 
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  @media (max-width:760px){ .grid2{grid-template-columns:1fr} }
+
+  label { font-size:11.5px; color:var(--muted); display:block; margin:4px 0 6px;
+    font-weight:600; letter-spacing:.01em; }
+  input.txt, textarea, select { width:100%; color:var(--fg); background:#0c1812;
+    border:1px solid var(--line); border-radius:11px; padding:11px 12px; font:inherit;
+    resize:vertical; }
+  input.txt:focus, textarea:focus, select:focus, input.color:focus { outline:none;
+    border-color:var(--accent); }
+  .help { color:var(--muted); font-size:11.5px; margin-top:5px; }
+
+  .chips { display:flex; flex-wrap:wrap; gap:8px; }
   .chip { border:1px solid var(--line2); background:#102018; color:var(--fg);
     border-radius:999px; padding:9px 15px; font-size:12.5px; font-weight:600;
     cursor:pointer; transition:.14s; }
   .chip:hover { border-color:var(--mint); }
   .chip[aria-pressed="true"] { background:var(--mint); color:#06291f; border-color:transparent;
     box-shadow:0 0 14px rgba(92,200,160,.35); }
+
   .btn { border:1px solid var(--line2); background:#16291f; color:var(--fg);
-    border-radius:11px; padding:11px 16px; font:inherit; font-weight:700; cursor:pointer;
+    border-radius:11px; padding:11px 18px; font:inherit; font-weight:700; cursor:pointer;
     transition:.14s; }
-  .btn:hover { border-color:var(--fg); }
+  .btn:hover:not(:disabled) { border-color:var(--fg); }
+  .btn:disabled { opacity:.5; cursor:not-allowed; }
   .btn.primary { background:linear-gradient(180deg,var(--accent-2),var(--accent));
     color:var(--ink); border:0; box-shadow:0 6px 20px rgba(247,136,154,.3); }
-  .btn.primary:hover { filter:brightness(1.05); }
+  .btn.primary:hover:not(:disabled) { filter:brightness(1.05); }
   .btn.ghost { background:transparent; }
+  .btn.sm { padding:7px 12px; font-size:12.5px; border-radius:9px; }
 
-  .count { color:var(--muted); font-size:12.5px; margin:2px 2px 14px; }
+  /* ---- step 2: outline / card editor ---- */
+  .cards { display:flex; flex-direction:column; gap:14px; }
+  .ced { border:1px solid var(--line); border-radius:var(--r); background:var(--panel);
+    padding:14px 16px; }
+  .ced .head { display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+  .ced .idx { display:grid; place-items:center; width:26px; height:26px; flex:none;
+    border-radius:8px; background:#16291f; border:1px solid var(--line2); font-weight:800; font-size:12px; }
+  .kind { font-size:10.5px; font-weight:800; padding:3px 9px; border-radius:7px;
+    background:rgba(92,200,160,.16); color:var(--mint); }
+  .kind.cover { background:rgba(247,136,154,.16); color:var(--accent-2); }
+  .ced .head .sp { flex:1; }
+  .ced .head button { border:1px solid var(--line2); background:#102018; color:var(--muted);
+    border-radius:8px; width:30px; height:30px; cursor:pointer; font-size:14px; transition:.14s; }
+  .ced .head button:hover:not(:disabled) { color:var(--fg); border-color:var(--fg); }
+  .ced .head button:disabled { opacity:.3; cursor:not-allowed; }
+  .ced .head button.del:hover { color:var(--accent); border-color:var(--accent); }
+  .ced .fields { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .ced .fields .full { grid-column:1 / -1; }
+  @media (max-width:680px){ .ced .fields{grid-template-columns:1fr} }
+  .addcard { border:1px dashed var(--line2); background:transparent; color:var(--muted);
+    border-radius:var(--r); padding:14px; font:inherit; font-weight:700; cursor:pointer; transition:.14s; }
+  .addcard:hover { color:var(--mint); border-color:var(--mint); }
 
-  /* result grid */
-  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(176px,1fr)); gap:14px; }
+  /* ---- step 3: reference search ---- */
+  .searchbar { display:flex; flex-wrap:wrap; gap:10px; align-items:center;
+    padding:10px; border:1px solid var(--line); background:rgba(18,37,28,.6);
+    border-radius:16px; margin-bottom:14px; }
+  .field { display:flex; align-items:center; gap:8px; flex:2; min-width:200px;
+    background:#0c1812; border:1px solid var(--line); border-radius:11px; padding:0 12px; }
+  .field svg { flex:none; opacity:.6; }
+  .field input { flex:1; border:0; background:transparent; color:var(--fg); padding:11px 0; font:inherit; }
+  .field input:focus { outline:none; }
+  .field:focus-within { border-color:var(--accent); }
+  input.color { width:118px; background:#0c1812; border:1px solid var(--line);
+    border-radius:11px; padding:11px 12px; color:var(--fg); font:inherit; }
+  .count { color:var(--muted); font-size:12.5px; margin:0 2px 12px; }
+
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:14px; }
   .card { border:1px solid var(--line); border-radius:var(--r); overflow:hidden;
     background:var(--panel); cursor:pointer; transition:.16s; position:relative;
     padding:0; text-align:left; width:100%; color:inherit; }
-  .card:hover { transform:translateY(-3px); border-color:var(--accent);
-    box-shadow:var(--shadow); }
+  .card:hover { transform:translateY(-3px); border-color:var(--accent); box-shadow:var(--shadow); }
   .card.sel { border-color:var(--accent); box-shadow:0 0 0 2px var(--accent), var(--shadow); }
   .card img { width:100%; aspect-ratio:1; object-fit:cover; display:block; background:#0c1812; }
   .card .pal { display:flex; height:6px; }
@@ -83,37 +138,58 @@
   .card .meta { padding:9px 11px; font-size:11.5px; color:var(--muted);
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .card .tpl { position:absolute; top:9px; left:9px; background:var(--mint); color:#06291f;
-    font-size:10.5px; font-weight:800; padding:3px 8px; border-radius:7px;
-    box-shadow:0 2px 8px rgba(0,0,0,.3); }
-  .empty { color:var(--muted); padding:40px 10px; text-align:center; }
+    font-size:10.5px; font-weight:800; padding:3px 8px; border-radius:7px; box-shadow:0 2px 8px rgba(0,0,0,.3); }
+  .card .pick { position:absolute; top:9px; right:9px; background:var(--accent); color:var(--ink);
+    font-size:11px; font-weight:800; padding:3px 8px; border-radius:7px; }
+  .empty { color:var(--muted); padding:40px 10px; text-align:center; grid-column:1/-1; }
+  .stylebar { display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+    padding:12px 14px; border:1px solid var(--line2); border-radius:var(--r);
+    background:rgba(22,44,33,.55); margin-bottom:14px; }
+  .stylebar b { color:var(--fg); }
+  .dotmint { color:var(--mint); } .dotacc { color:var(--accent-2); }
 
-  /* composer (right) */
-  .right h2 { font-size:16px; margin:0 0 2px; letter-spacing:-.01em; }
-  .selinfo { color:var(--muted); font-size:12.5px; margin:0 0 14px;
-    min-height:18px; line-height:1.4; }
-  label { font-size:11.5px; color:var(--muted); display:block; margin:13px 0 5px;
-    font-weight:600; letter-spacing:.01em; }
-  textarea, select, input.txt { width:100%; color:var(--fg); background:#0c1812;
-    border:1px solid var(--line); border-radius:11px; padding:10px 12px; font:inherit;
-    resize:vertical; }
-  textarea:focus, select:focus, input.txt:focus, .color:focus { outline:none;
-    border-color:var(--accent); }
-  .row { display:flex; gap:10px; }
-  .row > * { flex:1; }
+  /* ---- step 4: review filmstrip ---- */
+  .reviewtop { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:16px; }
+  .modebadge { font-size:11.5px; font-weight:800; padding:5px 11px; border-radius:8px;
+    background:rgba(92,200,160,.16); color:var(--mint); }
+  .modebadge.theme { background:rgba(247,136,154,.16); color:var(--accent-2); }
+  .strip { display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:16px; }
+  .slide { border:1px solid var(--line); border-radius:var(--r); overflow:hidden;
+    background:var(--panel); cursor:zoom-in; position:relative; transition:.16s; }
+  .slide:hover { border-color:var(--accent); transform:translateY(-3px); box-shadow:var(--shadow); }
+  .slide img { width:100%; display:block; background:#0c1812; }
+  .slide .tag { position:absolute; top:8px; left:8px; background:rgba(0,0,0,.6);
+    color:#fff; font-size:11px; font-weight:700; padding:3px 9px; border-radius:7px; }
+  .slide .edit { position:absolute; bottom:8px; right:8px; }
+  .reviewph { color:var(--muted); text-align:center; padding:60px 10px; border:1px dashed var(--line2);
+    border-radius:var(--r); }
 
-  .canvas { margin-top:14px; border-radius:var(--r); padding:12px;
-    background:repeating-conic-gradient(#0c1812 0% 25%, #0e1d15 0% 50%) 0/22px 22px;
-    border:1px solid var(--line); box-shadow:inset 0 0 30px rgba(0,0,0,.4); }
-  #preview { width:100%; border-radius:9px; display:block; box-shadow:var(--shadow); }
-  #preview:not([src]) { display:none; }
-  .canvas .ph { color:var(--muted); text-align:center; padding:48px 10px; font-size:12.5px; }
-
-  .vote { display:none; margin-top:12px; align-items:center; gap:9px; }
+  /* ---- step 5: export ---- */
+  .summary { border:1px solid var(--line); border-radius:var(--r); background:var(--panel);
+    padding:18px 20px; margin-bottom:18px; }
+  .summary dl { display:grid; grid-template-columns:120px 1fr; gap:10px 16px; margin:0; }
+  .summary dt { color:var(--muted); font-size:12.5px; }
+  .summary dd { margin:0; font-weight:600; }
+  .vote { display:flex; align-items:center; gap:10px; margin-top:14px; }
   .vote .lbl { color:var(--muted); font-size:12.5px; }
   .vote button { border:1px solid var(--line2); background:#102018; color:var(--fg);
     border-radius:10px; padding:7px 13px; font-size:15px; cursor:pointer; transition:.14s; }
   .vote button:hover { border-color:var(--mint); transform:translateY(-1px); }
   .vote .ack { color:var(--mint); font-size:12px; font-weight:600; }
+
+  /* ---- bottom nav ---- */
+  .nav { position:fixed; left:0; right:0; bottom:0; display:flex; align-items:center;
+    gap:12px; padding:14px 26px; border-top:1px solid var(--line);
+    background:rgba(11,24,18,.86); backdrop-filter:blur(8px); z-index:6; }
+  .nav .hint { color:var(--muted); font-size:12.5px; flex:1; }
+
+  /* ---- modal ---- */
+  .modal { position:fixed; inset:0; background:rgba(4,10,7,.82); display:none;
+    align-items:center; justify-content:center; z-index:20; padding:30px; }
+  .modal.open { display:flex; }
+  .modal img { max-width:min(92vw,560px); max-height:86vh; border-radius:12px; box-shadow:var(--shadow); }
+  .modal .x { position:absolute; top:18px; right:22px; background:#16291f; color:var(--fg);
+    border:1px solid var(--line2); border-radius:10px; width:40px; height:40px; font-size:18px; cursor:pointer; }
 
   a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible,
   textarea:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
@@ -126,12 +202,49 @@
 <body>
 <header class="topbar">
   <div class="brand"><span class="dot"></span>카드뉴스 <b>스튜디오</b></div>
-  <span class="tagline">레퍼런스 검색 → 선택 → 자동 채움 → 카드 생성</span>
+  <nav class="stepper" id="stepper" aria-label="제작 단계"></nav>
 </header>
 
-<main class="wrap">
-  <section class="left" aria-label="레퍼런스 검색 및 결과">
-    <h2 class="sr-only">레퍼런스 검색</h2>
+<main class="stage">
+  <!-- STEP 1 — 기획 -->
+  <section class="panel" id="p0" role="tabpanel" aria-label="기획">
+    <h1 class="title">① 기획</h1>
+    <p class="sub">누구에게, 무엇을 전할지 먼저 정합니다. 여기서 정한 키워드는 ③ 스타일 검색에 자동으로 쓰입니다.</p>
+    <div class="grid2">
+      <div>
+        <label for="pname">프로젝트(덱) 제목</label>
+        <input id="pname" class="txt" placeholder="예: 스마트팜 지원사업 안내">
+        <p class="help">내부 관리용 이름이에요. 카드에는 표시되지 않습니다.</p>
+      </div>
+      <div>
+        <label for="pbrand">브랜드 표기</label>
+        <input id="pbrand" class="txt" placeholder="예: AGRI">
+        <p class="help">카드 우상단에 들어가는 브랜드 마크. 비우면 표시 안 함.</p>
+      </div>
+      <div>
+        <label>대상 세그먼트</label>
+        <div class="chips" id="segs"></div>
+      </div>
+      <div>
+        <label for="pkw">스타일 검색 키워드</label>
+        <input id="pkw" class="txt" placeholder="예: smart farm, support, hanok">
+        <p class="help">레퍼런스를 고를 때 쓰는 영문/주제 키워드.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- STEP 2 — 구성 -->
+  <section class="panel" id="p1" role="tabpanel" aria-label="구성">
+    <h1 class="title">② 구성</h1>
+    <p class="sub">카드뉴스는 여러 장이 한 편입니다. 커버 → 본문 → 마무리 순서로 카드를 구성하세요. 종류는 입력한 내용으로 자동 판별됩니다(체크리스트가 있으면 체크리스트, 부제만 있으면 본문, 첫 장은 커버).</p>
+    <div class="cards" id="cards"></div>
+    <button class="addcard" id="addcard" style="width:100%;margin-top:14px">＋ 카드 추가</button>
+  </section>
+
+  <!-- STEP 3 — 스타일 -->
+  <section class="panel" id="p2" role="tabpanel" aria-label="스타일">
+    <h1 class="title">③ 스타일</h1>
+    <p class="sub">실제 카드뉴스 레퍼런스를 검색해 하나를 고르면, 그 톤·팔레트가 덱 전체에 적용됩니다. <span class="dotmint">레이아웃</span> 배지가 있는 레퍼런스는 실제 레이아웃까지 그대로 복사합니다.</p>
     <div class="searchbar" role="search">
       <label for="q" class="sr-only">주제 검색</label>
       <div class="field">
@@ -139,184 +252,373 @@
              stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
         <input id="q" placeholder="주제 검색 (예: smart farm, hanok, support)">
       </div>
-      <label for="color" class="sr-only">색상 (hex 코드)</label>
+      <label for="color" class="sr-only">색상 (hex)</label>
       <input id="color" class="color" placeholder="#15402b">
       <button type="button" class="chip" data-f="dark" aria-pressed="false">다크</button>
       <button type="button" class="chip" data-f="cover" aria-pressed="false">표지</button>
       <button type="button" class="chip" data-f="tpl" aria-pressed="false">레이아웃만</button>
-      <button type="button" class="btn primary" onclick="search()">검색</button>
-      <button type="button" class="btn ghost" onclick="reset()">초기화</button>
+      <button type="button" class="btn primary" id="searchbtn">검색</button>
+    </div>
+    <div class="stylebar" id="stylebar">
+      <span id="selsummary">선택된 레퍼런스가 없습니다 — 선택 없이 진행하면 기본 테마로 생성됩니다.</span>
+      <span class="sp" style="flex:1"></span>
+      <button class="btn ghost sm" id="clearref" hidden>선택 해제</button>
     </div>
     <p class="count" id="count" aria-live="polite"></p>
     <div class="grid" id="grid" role="list" aria-label="검색된 레퍼런스"></div>
   </section>
 
-  <aside class="right" aria-label="카드 생성">
-    <h2>카드 생성</h2>
-    <p class="selinfo" id="selinfo" aria-live="polite">레퍼런스를 선택하면 톤·레이아웃이 자동 적용됩니다.</p>
-    <label for="title">제목 (줄바꿈 = Enter)</label>
-    <textarea id="title" rows="2">스마트팜으로\n바뀌는 농업</textarea>
-    <label for="subtitle">부제 (*키워드* = 강조)</label>
-    <textarea id="subtitle" rows="2">복잡한 지원사업, *핵심만* 한 장에 정리했어요</textarea>
-    <label for="checklist">체크리스트 (한 줄에 하나)</label>
-    <textarea id="checklist" rows="3">신청 자격과 기간 한눈에
-필요 서류와 절차 정리
-문의처와 마감일까지</textarea>
-    <div class="row">
-      <div><label for="theme">테마</label>
-        <select id="theme">
-          <option>forest</option><option>midnight</option><option>coral</option>
-          <option>sky</option><option>mint</option><option>mono</option>
-        </select></div>
-      <div><label for="brand">브랜드</label><input id="brand" class="txt" value="AGRI"></div>
+  <!-- STEP 4 — 검토 -->
+  <section class="panel" id="p3" role="tabpanel" aria-label="검토">
+    <h1 class="title">④ 생성 · 검토</h1>
+    <p class="sub">덱 전체를 렌더링합니다. 카드를 클릭하면 크게 볼 수 있고, ‘수정’을 누르면 구성 단계로 돌아갑니다.</p>
+    <div class="reviewtop">
+      <button class="btn primary" id="renderbtn">덱 생성 / 새로고침</button>
+      <span class="modebadge" id="modebadge" hidden></span>
+      <span class="hint" id="renderhint" style="color:var(--muted);font-size:12.5px"></span>
     </div>
-    <button type="button" class="btn primary" style="width:100%;margin-top:16px" onclick="generate()">카드 생성</button>
-    <div class="canvas">
-      <div class="ph" id="ph">생성하면 여기에 카드가 나타납니다</div>
-      <img id="preview" alt="">
+    <div id="strip" class="strip"></div>
+    <div id="reviewph" class="reviewph">‘덱 생성’을 누르면 카드들이 여기에 나타납니다.</div>
+  </section>
+
+  <!-- STEP 5 — 내보내기 -->
+  <section class="panel" id="p4" role="tabpanel" aria-label="내보내기">
+    <h1 class="title">⑤ 내보내기</h1>
+    <p class="sub">완성된 덱을 ZIP으로 내려받고, 결과가 좋았는지 평가해 주세요. 평가는 다음 검색 순위에 반영됩니다.</p>
+    <div class="summary">
+      <dl id="summary"></dl>
+      <div class="vote" id="rate" hidden>
+        <span class="lbl">이 레퍼런스로 만든 결과 평가</span>
+        <button type="button" id="up" aria-label="좋아요">👍</button>
+        <button type="button" id="down" aria-label="별로예요">👎</button>
+        <span class="ack" id="rateack" aria-live="polite"></span>
+      </div>
     </div>
-    <div class="vote" id="rate">
-      <span class="lbl">이 결과 평가</span>
-      <button type="button" onclick="rate(1)" aria-label="좋아요">👍</button>
-      <button type="button" onclick="rate(-1)" aria-label="별로예요">👎</button>
-      <span class="ack" id="rateack" aria-live="polite"></span>
-    </div>
-  </aside>
+    <button class="btn primary" id="exportbtn">ZIP 다운로드</button>
+    <button class="btn ghost" id="restart" style="margin-left:10px">처음부터 새로</button>
+  </section>
 </main>
 
+<nav class="nav">
+  <button class="btn ghost" id="prevbtn">← 이전</button>
+  <span class="hint" id="navhint"></span>
+  <button class="btn primary" id="nextbtn">다음 →</button>
+</nav>
+
+<div class="modal" id="modal" aria-hidden="true">
+  <button class="x" id="modalx" aria-label="닫기">✕</button>
+  <img id="modalimg" alt="카드 확대 미리보기">
+</div>
+
 <script>
-const F = { dark:false, cover:false, tpl:false };
-let selected = null;
-let lastCtx = null;
+const STEPS = ['기획','구성','스타일','검토','내보내기'];
+const SEGMENTS = ['공공·정책','농업·스마트팜','소상공인·마케터','콘텐츠 크리에이터'];
+const LS = 'cardnews.project.v1';
+
+const DEFAULT = {
+  name:'스마트팜 지원사업 안내', brand:'AGRI', segment:'농업·스마트팜', keyword:'smart farm',
+  cards:[
+    { title:'스마트팜으로\n바뀌는 농업', subtitle:'복잡한 지원사업, *핵심만* 한 장에 정리했어요', checklist:[] },
+    { title:'이런 분께 추천해요', subtitle:'', checklist:['청년·귀농 창업농','시설 현대화를 준비 중','스마트 장비 도입 예정'] },
+    { title:'신청 전 꼭 확인하세요', subtitle:'자격·기간·서류를 *미리* 챙기면 절반은 끝!', checklist:[] },
+    { title:'지금 바로 신청하세요', subtitle:'문의: 1234-5678 · agri.go.kr', checklist:[] },
+  ],
+  ref:null, rendered:[], mode:null,
+};
+
+let P = load();
+let step = 0;
+let dirty = true;           // deck needs (re)render
 let FBSUM = {};
+let lastRate = null;
 
-fetch('/api/feedback/summary').then(r => r.json())
-  .then(d => { FBSUM = d.net_by_ref || {}; }).catch(() => {});
+function load() {
+  try { const s = JSON.parse(localStorage.getItem(LS)); if (s && s.cards) return s; } catch(e){}
+  return structuredClone(DEFAULT);
+}
+function save() { try { localStorage.setItem(LS, JSON.stringify(P)); } catch(e){} }
 
-// only the FILTER chips (data-f) get the toggle handler — not the vote buttons
-document.querySelectorAll('.chip[data-f]').forEach(c => c.onclick = () => {
-  F[c.dataset.f] = !F[c.dataset.f];
-  c.setAttribute('aria-pressed', String(F[c.dataset.f]));
-  search();
-});
+fetch('/api/feedback/summary').then(r=>r.json()).then(d=>{FBSUM=d.net_by_ref||{};}).catch(()=>{});
 
+/* ---------- card kind (auto) ---------- */
+function kindOf(i, c) {
+  if (i === 0) return ['커버','cover'];
+  if (c.checklist && c.checklist.filter(Boolean).length) return ['체크리스트',''];
+  return ['본문',''];
+}
+
+/* ---------- stepper ---------- */
+function buildStepper() {
+  const el = document.getElementById('stepper'); el.innerHTML='';
+  STEPS.forEach((name,i)=>{
+    const b = document.createElement('button');
+    b.className = 'stepbtn' + (i<step?' done':'');
+    b.setAttribute('aria-current', i===step?'true':'false');
+    b.innerHTML = `<span class="n">${i<step?'✓':i+1}</span>${name}`;
+    b.onclick = ()=>goto(i);
+    el.appendChild(b);
+  });
+}
+function goto(i) {
+  if (i<0 || i>=STEPS.length) return;
+  syncFromInputs();
+  step = i;
+  document.querySelectorAll('.panel').forEach((p,idx)=>p.classList.toggle('active', idx===step));
+  buildStepper();
+  document.getElementById('prevbtn').disabled = step===0;
+  const next = document.getElementById('nextbtn');
+  next.textContent = step===STEPS.length-1 ? '완료 ✓' : '다음 →';
+  next.disabled = step===STEPS.length-1;
+  const hints = ['대상과 메시지를 정하세요','카드를 구성하세요','스타일을 고르세요(선택)','덱을 생성해 확인하세요','내보내기'];
+  document.getElementById('navhint').textContent = hints[step];
+  if (step===2) ensureSearched();
+  if (step===3 && dirty) renderDeck();
+  if (step===4) fillSummary();
+  window.scrollTo({top:0,behavior:'smooth'});
+  save();
+}
+
+/* ---------- step 1: 기획 ---------- */
+function buildSegs() {
+  const el = document.getElementById('segs'); el.innerHTML='';
+  SEGMENTS.forEach(s=>{
+    const b=document.createElement('button');
+    b.className='chip'; b.type='button'; b.textContent=s;
+    b.setAttribute('aria-pressed', String(P.segment===s));
+    b.onclick=()=>{ P.segment = (P.segment===s?'':s); buildSegs(); save(); };
+    el.appendChild(b);
+  });
+}
+function fillBrief() {
+  document.getElementById('pname').value = P.name||'';
+  document.getElementById('pbrand').value = P.brand||'';
+  document.getElementById('pkw').value = P.keyword||'';
+  buildSegs();
+}
+
+/* ---------- step 2: 구성 ---------- */
+function buildCards() {
+  const wrap = document.getElementById('cards'); wrap.innerHTML='';
+  P.cards.forEach((c,i)=>{
+    const [klabel,kcls] = kindOf(i,c);
+    const d = document.createElement('div'); d.className='ced';
+    d.innerHTML = `
+      <div class="head">
+        <span class="idx">${i+1}</span>
+        <span class="kind ${kcls}">${klabel}</span>
+        <span class="sp"></span>
+        <button class="up" title="위로" aria-label="위로 이동" ${i===0?'disabled':''}>↑</button>
+        <button class="down" title="아래로" aria-label="아래로 이동" ${i===P.cards.length-1?'disabled':''}>↓</button>
+        <button class="del" title="삭제" aria-label="카드 삭제" ${P.cards.length<=1?'disabled':''}>✕</button>
+      </div>
+      <div class="fields">
+        <div class="full">
+          <label>제목 <span style="font-weight:400">(Enter = 줄바꿈)</span></label>
+          <textarea class="f-title" rows="2"></textarea>
+        </div>
+        <div class="full">
+          <label>부제 <span style="font-weight:400">(*키워드* = 강조)</span></label>
+          <textarea class="f-sub" rows="2"></textarea>
+        </div>
+        <div class="full">
+          <label>체크리스트 <span style="font-weight:400">(한 줄에 하나, 비우면 일반 본문)</span></label>
+          <textarea class="f-list" rows="3"></textarea>
+        </div>
+      </div>`;
+    d.querySelector('.f-title').value = c.title||'';
+    d.querySelector('.f-sub').value = c.subtitle||'';
+    d.querySelector('.f-list').value = (c.checklist||[]).join('\n');
+    d.querySelector('.f-title').addEventListener('input', e=>{ c.title=e.target.value; markDirty(); });
+    d.querySelector('.f-sub').addEventListener('input', e=>{ c.subtitle=e.target.value; markDirty(); });
+    d.querySelector('.f-list').addEventListener('input', e=>{
+      c.checklist=e.target.value.split('\n').map(s=>s.trim()).filter(Boolean);
+      markDirty(); refreshKind(d,i,c);
+    });
+    d.querySelector('.up').onclick=()=>move(i,-1);
+    d.querySelector('.down').onclick=()=>move(i,1);
+    d.querySelector('.del').onclick=()=>delCard(i);
+    wrap.appendChild(d);
+  });
+}
+function refreshKind(d,i,c){ const [l,k]=kindOf(i,c); const e=d.querySelector('.kind'); e.textContent=l; e.className='kind '+k; }
+function move(i,dir){ const j=i+dir; if(j<0||j>=P.cards.length) return;
+  [P.cards[i],P.cards[j]]=[P.cards[j],P.cards[i]]; markDirty(); buildCards(); }
+function delCard(i){ if(P.cards.length<=1) return; P.cards.splice(i,1); markDirty(); buildCards(); }
+function addCard(){ P.cards.push({title:'새 카드 제목',subtitle:'',checklist:[]}); markDirty(); buildCards();
+  document.getElementById('cards').lastElementChild.scrollIntoView({behavior:'smooth',block:'center'}); }
+function markDirty(){ dirty=true; save(); }
+
+/* ---------- step 3: 스타일 (search) ---------- */
+const F = { dark:false, cover:false, tpl:false };
+let searched = false;
 function qs() {
   const p = new URLSearchParams();
   const q = document.getElementById('q').value.trim();
   const c = document.getElementById('color').value.trim();
   if (q) p.set('text', q);
   if (c) p.set('color', c);
-  if (F.dark) p.set('dark', 'true');
-  if (F.cover) p.set('cover', 'true');
-  if (F.tpl) p.set('only_templates', 'true');
-  p.set('k', '36');
+  if (F.dark) p.set('dark','true');
+  if (F.cover) p.set('cover','true');
+  if (F.tpl) p.set('only_templates','true');
+  p.set('k','36');
   return p.toString();
 }
-
 async function search() {
-  const g = document.getElementById('grid');
-  g.setAttribute('aria-busy', 'true');
-  const r = await fetch('/api/search?' + qs());
-  render(await r.json());
+  const g=document.getElementById('grid'); g.setAttribute('aria-busy','true');
+  try {
+    const r = await fetch('/api/search?'+qs());
+    renderGrid(await r.json());
+    searched = true;
+  } catch(e){ g.innerHTML='<div class="empty">검색 실패. 서버가 실행 중인지 확인하세요.</div>'; }
 }
-function reset() {
-  document.getElementById('q').value = '';
-  document.getElementById('color').value = '';
-  F.dark = F.cover = F.tpl = false;
-  document.querySelectorAll('.chip[data-f]').forEach(c => c.setAttribute('aria-pressed', 'false'));
-  search();
-}
-
-function render(data) {
-  document.getElementById('count').textContent = data.count + '개 레퍼런스';
-  const g = document.getElementById('grid'); g.innerHTML = '';
-  if (!data.results.length) {
-    g.innerHTML = '<div class="empty">결과가 없어요. 검색어나 필터를 바꿔보세요.</div>';
-    return;
-  }
-  data.results.forEach(r => {
-    const isSel = selected && selected.id === r.id;
-    const el = document.createElement('div');
-    el.className = 'card' + (isSel ? ' sel' : '');
-    el.setAttribute('role', 'button');
-    el.setAttribute('tabindex', '0');
-    el.setAttribute('aria-pressed', isSel ? 'true' : 'false');
-    el.setAttribute('aria-label',
-      `레퍼런스 ${r.deck} 선택${r.has_template ? ' (실제 레이아웃 복사 가능)' : ''}`);
-    const pal = (r.palette || []).slice(0,5)
-      .map(c => `<i style="background:rgb(${c[0]},${c[1]},${c[2]})"></i>`).join('');
-    const badge = r.has_template ? '<div class="tpl">레이아웃</div>' : '';
-    const net = FBSUM[r.id] || 0;
-    const votes = net > 0 ? ` · 👍${net}` : (net < 0 ? ` · 👎${-net}` : '');
-    el.innerHTML =
-      `<img loading="lazy" alt="레퍼런스 미리보기: ${r.deck}" src="/api/reference/${encodeURIComponent(r.id)}?w=320">${badge}
-       <div class="pal" aria-hidden="true">${pal}</div>
-       <div class="meta">${r.theme} · ${r.dark?'dark':'light'}${votes} · ${r.deck.slice(0,16)}</div>`;
-    el.onclick = () => select(r, el);
-    el.onkeydown = e => {
-      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); select(r, el); }
-    };
+function ensureSearched(){ if(!searched){ if(!document.getElementById('q').value) document.getElementById('q').value=P.keyword||''; search(); } updateStyleBar(); }
+function renderGrid(data) {
+  document.getElementById('count').textContent = (data.count||0)+'개 레퍼런스';
+  const g=document.getElementById('grid'); g.innerHTML='';
+  if(!data.results || !data.results.length){ g.innerHTML='<div class="empty">결과가 없어요. 검색어나 필터를 바꿔보세요.</div>'; return; }
+  data.results.forEach(r=>{
+    const isSel = P.ref && P.ref.id===r.id;
+    const el=document.createElement('button'); el.className='card'+(isSel?' sel':''); el.type='button';
+    el.setAttribute('aria-pressed', isSel?'true':'false');
+    el.setAttribute('aria-label', `레퍼런스 ${r.deck} 선택${r.has_template?' (실제 레이아웃 복사 가능)':''}`);
+    const pal=(r.palette||[]).slice(0,5).map(c=>`<i style="background:rgb(${c[0]},${c[1]},${c[2]})"></i>`).join('');
+    const badge = r.has_template?'<div class="tpl">레이아웃</div>':'';
+    const pick = isSel?'<div class="pick">선택됨</div>':'';
+    const net=FBSUM[r.id]||0; const votes=net>0?` · 👍${net}`:(net<0?` · 👎${-net}`:'');
+    el.innerHTML = `<img loading="lazy" alt="레퍼런스 미리보기: ${r.deck}" src="/api/reference/${encodeURIComponent(r.id)}?w=320">${badge}${pick}
+      <div class="pal" aria-hidden="true">${pal}</div>
+      <div class="meta">${r.theme} · ${r.dark?'dark':'light'}${votes} · ${(r.deck||'').slice(0,16)}</div>`;
+    el.onclick=()=>selectRef(r);
     g.appendChild(el);
   });
 }
+function selectRef(r){ P.ref = (P.ref && P.ref.id===r.id) ? null : r; markDirty(); updateStyleBar(); search(); }
+function updateStyleBar(){
+  const s=document.getElementById('selsummary'); const clr=document.getElementById('clearref');
+  if(P.ref){
+    s.innerHTML = P.ref.has_template
+      ? `선택: <b>${(P.ref.deck||'').slice(0,28)}</b> — <span class="dotmint">실제 레이아웃을 복사</span>합니다`
+      : `선택: <b>${(P.ref.deck||'').slice(0,28)}</b> — 템플릿 없음, <span class="dotacc">테마 "${P.ref.theme}"</span>로 생성`;
+    clr.hidden=false;
+  } else { s.textContent='선택된 레퍼런스가 없습니다 — 선택 없이 진행하면 기본 테마로 생성됩니다.'; clr.hidden=true; }
+}
 
-function select(r, el) {
-  selected = r;
-  document.querySelectorAll('.card').forEach(c => {
-    c.classList.remove('sel'); c.setAttribute('aria-pressed', 'false');
+/* ---------- step 4: render deck ---------- */
+function deckPayload(){
+  return {
+    ref_id: P.ref ? P.ref.id : null,
+    brand: (P.brand||'').trim() || null,
+    size: 1080,
+    cards: P.cards.map(c=>({ title:c.title||'', subtitle:(c.subtitle||'').trim()||null,
+                             checklist:(c.checklist||[]).filter(Boolean) || null })),
+  };
+}
+async function renderDeck(){
+  const btn=document.getElementById('renderbtn'); btn.disabled=true; btn.textContent='생성 중…';
+  document.getElementById('reviewph').textContent='렌더링 중…';
+  try {
+    const r = await fetch('/api/deck/render',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(deckPayload())});
+    if(!r.ok){ throw new Error(await r.text()); }
+    const d = await r.json();
+    P.rendered = d.cards; P.mode = d.mode; dirty=false; save();
+    drawStrip();
+  } catch(e){ document.getElementById('reviewph').textContent='생성 실패: '+e.message; document.getElementById('reviewph').style.display='block'; }
+  btn.disabled=false; btn.textContent='덱 생성 / 새로고침';
+}
+function drawStrip(){
+  const strip=document.getElementById('strip'); const ph=document.getElementById('reviewph');
+  const mb=document.getElementById('modebadge');
+  if(!P.rendered || !P.rendered.length){ ph.style.display='block'; strip.innerHTML=''; mb.hidden=true; return; }
+  ph.style.display='none';
+  mb.hidden=false;
+  mb.className = 'modebadge'+(P.mode==='template'?'':' theme');
+  mb.textContent = P.mode==='template' ? '레이아웃 복사' : (P.mode==='theme' ? '테마(레퍼런스 톤)' : '기본 테마');
+  document.getElementById('renderhint').textContent = `${P.rendered.length}장 · ${P.ref?('레퍼런스: '+(P.ref.deck||'').slice(0,20)):'레퍼런스 없음'}`;
+  strip.innerHTML='';
+  P.rendered.forEach((src,i)=>{
+    const [klabel]=kindOf(i,P.cards[i]||{});
+    const d=document.createElement('div'); d.className='slide';
+    d.innerHTML=`<span class="tag">${i+1} · ${klabel}</span>
+      <img src="${src}" alt="카드 ${i+1} 미리보기">
+      <button class="btn ghost sm edit" type="button">수정</button>`;
+    d.querySelector('img').onclick=()=>openModal(src);
+    d.querySelector('.edit').onclick=(e)=>{ e.stopPropagation(); goto(1);
+      setTimeout(()=>document.querySelectorAll('.ced')[i]?.scrollIntoView({behavior:'smooth',block:'center'}),60); };
+    strip.appendChild(d);
   });
-  el.classList.add('sel'); el.setAttribute('aria-pressed', 'true');
-  document.getElementById('theme').value = r.theme;
-  document.getElementById('selinfo').textContent = r.has_template
-    ? `선택: ${r.deck.slice(0,28)} → 이 레퍼런스의 실제 레이아웃을 복사합니다`
-    : `선택: ${r.deck.slice(0,28)} → 템플릿 없음, 테마 "${r.theme}"로 생성`;
+}
+function openModal(src){ const m=document.getElementById('modal'); document.getElementById('modalimg').src=src;
+  m.classList.add('open'); m.setAttribute('aria-hidden','false'); }
+function closeModal(){ const m=document.getElementById('modal'); m.classList.remove('open'); m.setAttribute('aria-hidden','true'); }
+
+/* ---------- step 5: export + feedback ---------- */
+function fillSummary(){
+  const dl=document.getElementById('summary');
+  const modeTxt = P.mode==='template'?'레이아웃 복사':(P.mode==='theme'?'테마(레퍼런스 톤)':(P.mode?'기본 테마':'미생성'));
+  dl.innerHTML = `
+    <dt>프로젝트</dt><dd>${esc(P.name)||'(제목 없음)'}</dd>
+    <dt>카드 수</dt><dd>${P.cards.length}장${P.rendered.length?` (생성됨 ${P.rendered.length}장)`:' (아직 미생성)'}</dd>
+    <dt>레퍼런스</dt><dd>${P.ref?esc((P.ref.deck||'').slice(0,30)):'선택 안 함'}</dd>
+    <dt>생성 방식</dt><dd>${modeTxt}</dd>
+    <dt>브랜드</dt><dd>${esc(P.brand)||'표시 안 함'}</dd>`;
+  const rate=document.getElementById('rate');
+  rate.hidden = !(P.ref && P.rendered.length);
+  document.getElementById('rateack').textContent='';
+}
+function esc(s){ return (s||'').replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m])); }
+async function exportZip(){
+  if(dirty || !P.rendered.length){ await renderDeck(); }
+  const btn=document.getElementById('exportbtn'); btn.disabled=true; btn.textContent='준비 중…';
+  try {
+    const r=await fetch('/api/deck/export',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(deckPayload())});
+    if(!r.ok) throw new Error(await r.text());
+    const blob=await r.blob(); const url=URL.createObjectURL(blob);
+    const a=document.createElement('a'); a.href=url; a.download=(P.name||'deck').replace(/\s+/g,'_')+'.zip';
+    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+  } catch(e){ alert('내보내기 실패: '+e.message); }
+  btn.disabled=false; btn.textContent='ZIP 다운로드';
+}
+async function rate(v){
+  if(!P.ref) return;
+  try{
+    const r=await fetch('/api/feedback',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ref_id:P.ref.id,rating:v,query:P.keyword||null,mode:P.mode,title:(P.cards[0]||{}).title})});
+    if(!r.ok) return; const d=await r.json(); FBSUM[P.ref.id]=d.net;
+    document.getElementById('rateack').textContent=(v>0?'좋아요':'별로예요')+' 반영됨 ✓';
+  }catch(e){}
 }
 
-async function generate() {
-  const title = document.getElementById('title').value.replace(/\\n/g, '\n');
-  const subtitle = document.getElementById('subtitle').value || null;
-  let checklist = document.getElementById('checklist').value.split('\n').map(s=>s.trim()).filter(Boolean);
-  if (!checklist.length) checklist = null;
-  const brand = document.getElementById('brand').value || null;
-
-  let url, body;
-  if (selected) {
-    url = '/api/generate_from_ref';
-    body = { ref_id: selected.id, title, subtitle, checklist, brand, size: 1080 };
-  } else {
-    url = '/api/generate';
-    body = { title, subtitle, checklist, theme: document.getElementById('theme').value, brand, size: 1080 };
-  }
-  const r = await fetch(url, {
-    method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
-  if (!r.ok) { alert('생성 실패: ' + await r.text()); return; }
-  const mode = r.headers.get('X-Render-Mode');
-  const img = document.getElementById('preview');
-  img.src = URL.createObjectURL(await r.blob());
-  img.alt = `생성된 카드: ${title.replace(/\n/g, ' ')}`;
-  document.getElementById('ph').style.display = 'none';
-  if (mode) document.getElementById('selinfo').textContent =
-    `생성 완료 (${mode === 'template' ? '레이아웃 복사' : '테마 폴백'})`;
-
-  lastCtx = { ref_id: selected ? selected.id : null,
-              query: document.getElementById('q').value.trim() || null, mode, title };
-  document.getElementById('rate').style.display = lastCtx.ref_id ? 'flex' : 'none';
-  document.getElementById('rateack').textContent = '';
+/* ---------- input sync ---------- */
+function syncFromInputs(){
+  if(document.getElementById('pname')) P.name=document.getElementById('pname').value;
+  if(document.getElementById('pbrand')) P.brand=document.getElementById('pbrand').value;
+  if(document.getElementById('pkw')) P.keyword=document.getElementById('pkw').value;
+  save();
 }
 
-async function rate(v) {
-  if (!lastCtx || !lastCtx.ref_id) return;
-  const r = await fetch('/api/feedback', {
-    method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ ref_id:lastCtx.ref_id, rating:v, query:lastCtx.query,
-                           mode:lastCtx.mode, title:lastCtx.title })});
-  if (!r.ok) return;
-  const d = await r.json();
-  FBSUM[lastCtx.ref_id] = d.net;
-  document.getElementById('rateack').textContent = (v > 0 ? '좋아요' : '별로예요') + ' 반영됨 ✓';
-}
+/* ---------- wire up ---------- */
+document.querySelectorAll('.chip[data-f]').forEach(c=>c.onclick=()=>{
+  F[c.dataset.f]=!F[c.dataset.f]; c.setAttribute('aria-pressed',String(F[c.dataset.f])); search();
+});
+document.getElementById('searchbtn').onclick=search;
+document.getElementById('q').addEventListener('keydown',e=>{ if(e.key==='Enter') search(); });
+document.getElementById('clearref').onclick=()=>{ P.ref=null; markDirty(); updateStyleBar(); search(); };
+document.getElementById('addcard').onclick=addCard;
+document.getElementById('renderbtn').onclick=renderDeck;
+document.getElementById('exportbtn').onclick=exportZip;
+document.getElementById('up').onclick=()=>rate(1);
+document.getElementById('down').onclick=()=>rate(-1);
+document.getElementById('prevbtn').onclick=()=>goto(step-1);
+document.getElementById('nextbtn').onclick=()=>goto(step+1);
+document.getElementById('restart').onclick=()=>{ if(confirm('모든 입력을 초기화할까요?')){ P=structuredClone(DEFAULT); searched=false; markDirty(); init(); goto(0); } };
+document.getElementById('modalx').onclick=closeModal;
+document.getElementById('modal').onclick=e=>{ if(e.target.id==='modal') closeModal(); };
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeModal(); });
+['pname','pbrand','pkw'].forEach(id=>document.getElementById(id).addEventListener('input',()=>{ syncFromInputs(); if(id==='pbrand') markDirty(); }));
 
-search();
+function init(){ fillBrief(); buildCards(); updateStyleBar(); drawStrip(); }
+init();
+goto(0);
 </script>
 </body>
 </html>

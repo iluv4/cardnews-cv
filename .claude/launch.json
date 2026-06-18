@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "cardnews",
+      "runtimeExecutable": "py",
+      "runtimeArgs": ["-3", "-m", "uvicorn", "service.app:app", "--port", "8000", "--host", "127.0.0.1"],
+      "port": 8000
+    }
+  ]
+}

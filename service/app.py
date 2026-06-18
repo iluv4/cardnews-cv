@@ -284,6 +284,90 @@ def api_deck(req: DeckReq):
                     headers={"Content-Disposition": 'attachment; filename="deck.zip"'})
 
 
+# ---- deck-centric workflow: render / export a whole deck honoring a reference --
+class DeckCard(BaseModel):
+    title: str
+    subtitle: str | None = None
+    checklist: list[str] | None = None
+
+
+class DeckBuildReq(BaseModel):
+    cards: list[DeckCard]
+    ref_id: str | None = None         # selected reference; None -> default theme
+    brand: str | None = None
+    size: int = 1080
+    seed: int = 0
+
+
+def _render_deck(ref_id, cards, brand, size, seed):
+    """Render every card of a deck as one designed series.
+
+    Template-backed refs copy the selected reference's REAL layout on every card
+    (the product's "copy that layout, refill" promise); a ref without a template
+    drives the themed v2 engine with a palette synthesized from it (cover +
+    page-numbered interiors); no ref at all falls back to the default theme.
+    Returns (list[PIL.Image], mode)."""
+    rec = lib().by_id.get(ref_id) if ref_id else None
+    if ref_id and not rec:
+        raise HTTPException(404, f"unknown reference {ref_id}")
+    t = templates().get(ref_id) if ref_id else None
+    theme = suggest_theme(rec) if rec else "forest"
+    n = len(cards)
+    imgs = []
+    for i, c in enumerate(cards):
+        title = (c.get("title") or "").replace("\\n", "\n")
+        subtitle = c.get("subtitle") or None
+        checklist = [s for s in (c.get("checklist") or []) if s] or None
+        if t is not None:
+            img = render_from_template(t, title, subtitle=subtitle,
+                                       checklist=checklist, brand=brand or None,
+                                       width=size, seed=seed + i)
+        else:
+            img = generate_card(title, subtitle=subtitle, checklist=checklist,
+                                theme=theme, kind=("cover" if i == 0 else "auto"),
+                                brand=(brand or None),
+                                page=(None if i == 0 else i + 1),
+                                total=(None if i == 0 else n),
+                                size=(size, size), seed=seed)
+        imgs.append(img)
+    mode = "template" if t is not None else ("theme" if rec else "theme-default")
+    return imgs, mode
+
+
+@app.post("/api/deck/render")
+def api_deck_render(req: DeckBuildReq):
+    """Render the whole deck and return each card as a base64 PNG data URL — the
+    review step's filmstrip pulls the entire deck in one request."""
+    import base64
+    if not req.cards:
+        raise HTTPException(400, "cards is empty")
+    cards = [c.model_dump() for c in req.cards]
+    imgs, mode = _render_deck(req.ref_id, cards, req.brand, req.size, req.seed)
+    out = []
+    for im in imgs:
+        b = io.BytesIO(); im.save(b, "PNG")
+        out.append("data:image/png;base64," + base64.b64encode(b.getvalue()).decode())
+    return {"mode": mode, "count": len(out), "cards": out}
+
+
+@app.post("/api/deck/export")
+def api_deck_export(req: DeckBuildReq):
+    """Render the deck and return a zip of PNGs (one per card)."""
+    import zipfile
+    if not req.cards:
+        raise HTTPException(400, "cards is empty")
+    cards = [c.model_dump() for c in req.cards]
+    imgs, mode = _render_deck(req.ref_id, cards, req.brand, req.size, req.seed)
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        for i, im in enumerate(imgs):
+            b = io.BytesIO(); im.save(b, "PNG")
+            z.writestr(f"card_{i:02d}.png", b.getvalue())
+    return Response(buf.getvalue(), media_type="application/zip",
+                    headers={"Content-Disposition": 'attachment; filename="deck.zip"',
+                             "X-Render-Mode": mode})
+
+
 @app.get("/", response_class=HTMLResponse)
 def index():
     p = os.path.join(ROOT, "service", "static", "index.html")

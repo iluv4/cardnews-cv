@@ -20,6 +20,9 @@ import json
 import argparse
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# ROOT too, so `from gen.common import load_yolo` (gen/ is a namespace package)
+# resolves when this is run as a standalone script.
+sys.path.insert(1, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import common
 
 CLASSES = {0: "title", 1: "body", 2: "logo", 3: "underlay"}
