@@ -57,6 +57,19 @@ def templates():
     return _TEMPLATES
 
 
+import store
+
+_FB = None          # cached {ref_id: net}; invalidated on each new rating
+
+
+def feedback_summary():
+    """id -> net rating (sum of +1/-1). Cached until the next write."""
+    global _FB
+    if _FB is None:
+        _FB = store.load_summary()
+    return _FB
+
+
 # ---- map a chosen reference to an engine theme (until live extraction lands) --
 def suggest_theme(rec):
     r, g, b = rec["palette"][0]
@@ -80,18 +93,63 @@ def _slim(rec):
                             "has_template": rec["id"] in templates()}
 
 
+def _apply_feedback_boost(res):
+    """Nudge results that users rated positively above similar-scoring ones."""
+    import math
+    fb = feedback_summary()
+    if not fb:
+        return res
+    for r in res:
+        net = fb.get(r["id"], 0)
+        if net:
+            r["score"] = round(r.get("score", 0.0) + 0.15 * math.tanh(net / 3.0), 4)
+    res.sort(key=lambda r: -r.get("score", 0.0))
+    return res
+
+
 @app.get("/api/search")
 def api_search(text: str = None, color: str = None, dark: bool = None,
                cover: bool = None, cluster: int = None, source: str = None,
                only_templates: bool = False, k: int = 24):
-    # when filtering to template-backed refs, over-fetch then keep the copyable ones
-    res = lib().query(text=text, color=color, dark=dark, cover=cover,
-                      cluster=cluster, source=source,
-                      k=(k * 6 if only_templates else k))
+    # over-fetch a pool, filter/boost, then truncate (so feedback can re-rank)
+    pool = lib().query(text=text, color=color, dark=dark, cover=cover,
+                       cluster=cluster, source=source, k=k * 6)
     if only_templates:
         tids = templates()
-        res = [r for r in res if r["id"] in tids][:k]
-    return {"count": len(res), "results": [_slim(r) for r in res]}
+        pool = [r for r in pool if r["id"] in tids]
+    pool = _apply_feedback_boost(pool)[:k]
+    return {"count": len(pool), "results": [_slim(r) for r in pool]}
+
+
+class FbReq(BaseModel):
+    ref_id: str
+    rating: int                       # +1 (good) or -1 (bad)
+    query: str | None = None
+    mode: str | None = None           # template | theme-fallback
+    title: str | None = None
+    note: str | None = None
+
+
+@app.post("/api/feedback")
+def api_feedback(req: FbReq):
+    """Record a user's evaluation of a generated result. Feeds search re-ranking
+    and doubles as a labeled eval dataset (Supabase, or JSONL locally)."""
+    global _FB
+    rating = 1 if req.rating > 0 else -1
+    store.save_feedback({"ref_id": req.ref_id, "rating": rating, "query": req.query,
+                         "mode": req.mode, "title": req.title, "note": req.note})
+    _FB = None                          # invalidate; reload includes the new row
+    fb = feedback_summary()
+    return {"ok": True, "ref_id": req.ref_id, "net": fb.get(req.ref_id, 0),
+            "store": store.backend()}
+
+
+@app.get("/api/feedback/summary")
+def api_feedback_summary():
+    fb = feedback_summary()
+    pos = sum(1 for v in fb.values() if v > 0)
+    return {"net_by_ref": fb, "rated_refs": len(fb), "net_positive_refs": pos,
+            "store": store.backend()}
 
 
 @app.get("/api/similar/{ref_id}")

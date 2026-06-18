@@ -1,0 +1,8 @@
+# Deploy (web) deps — NO torch. Search runs on numpy/opencv; rendering on Pillow.
+# Semantic similar_to uses precomputed CLIP embeddings (numpy cosine) if present;
+# building embeddings / Korean semantic text search needs torch (RunPod), not here.
+fastapi>=0.110
+uvicorn[standard]>=0.27
+pillow>=10
+numpy>=1.26
+opencv-python-headless>=4.9

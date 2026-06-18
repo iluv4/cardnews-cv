@@ -22,3 +22,10 @@ reflib/data/clip_ids.json
 
 # reflib thumbnail cache (regenerated on demand)
 reflib/data/thumbs/
+
+# local feedback log (use Supabase in deploy) + dataset exports
+reflib/data/feedback.jsonl
+data_export/
+
+# RunPod artifact bundle
+reflib_artifacts.tar.gz

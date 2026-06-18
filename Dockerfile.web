@@ -1,0 +1,20 @@
+# Lightweight web image for the cardnews-cv service (no torch).
+# Railway uses this via railway.json (build.dockerfilePath).
+FROM python:3.11-slim
+
+WORKDIR /app
+# opencv runtime libs
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgl1 libglib2.0-0 && rm -rf /var/lib/apt/lists/*
+
+COPY service/requirements-web.txt .
+RUN pip install --no-cache-dir -r requirements-web.txt
+
+# bundle app + reference corpus + index + templates (images are committed)
+COPY . .
+
+# Feedback storage: set SUPABASE_URL + SUPABASE_ANON_KEY to persist to Postgres;
+# otherwise falls back to a local JSONL file (ephemeral on most hosts).
+ENV PORT=8000
+EXPOSE 8000
+CMD ["sh", "-c", "uvicorn service.app:app --host 0.0.0.0 --port ${PORT:-8000}"]
