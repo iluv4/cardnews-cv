@@ -3,88 +3,157 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>cardnews-cv · 레퍼런스 검색 → 카드 생성</title>
+<title>카드뉴스 스튜디오 · 레퍼런스 검색 → 카드 생성</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
 <style>
-  :root { --bg:#0e1116; --panel:#171b22; --line:#262c36; --fg:#e7ebf0;
-          --muted:#8b95a3; --accent:#f7889a; --accent2:#5cc8a0; }
+  :root {
+    --bg:#0b1812; --bg2:#0e1f17; --panel:#12251c; --panel2:#162c21;
+    --line:#244236; --line2:#2f5444; --fg:#eaf3ee; --muted:#8ea89b;
+    --accent:#f7889a; --accent-2:#fca6b4; --mint:#5cc8a0; --ink:#2a0d14;
+    --r:14px; --shadow:0 8px 30px rgba(0,0,0,.35);
+    --font:"Pretendard Variable",Pretendard,"Malgun Gothic",system-ui,sans-serif;
+  }
   * { box-sizing:border-box; }
-  body { margin:0; font:14px/1.5 system-ui,"Malgun Gothic",sans-serif;
-         background:var(--bg); color:var(--fg); }
-  header { padding:14px 20px; border-bottom:1px solid var(--line);
-           display:flex; gap:14px; align-items:center; }
-  header h1 { font-size:15px; margin:0; font-weight:700; }
-  header .sub { color:var(--muted); font-size:12px; }
-  .wrap { display:grid; grid-template-columns:1fr 360px; gap:0; height:calc(100vh - 53px); }
-  .left { padding:16px 20px; overflow:auto; }
-  .right { border-left:1px solid var(--line); padding:16px 18px; overflow:auto;
-           background:var(--panel); }
-  .right h2 { font-size:14px; margin:0 0 2px; }
-  .controls { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px; align-items:center; }
-  input,select,button,textarea { font:inherit; color:var(--fg);
-        background:#0f131a; border:1px solid var(--line); border-radius:8px;
-        padding:8px 10px; }
-  button { cursor:pointer; background:#202733; }
-  button.primary { background:var(--accent); color:#2a0d14; border:none; font-weight:700; }
-  .chip { padding:8px 14px; border-radius:999px; font-size:12px; min-height:34px; }
-  .chip[aria-pressed="true"] { background:var(--accent2); color:#06291f; border-color:transparent; }
-  /* visible focus indicator on every interactive element (2.4.7) */
+  html,body { height:100%; }
+  body { margin:0; font-family:var(--font); color:var(--fg); font-size:14px;
+    background:
+      radial-gradient(1200px 600px at 85% -10%, rgba(247,136,154,.10), transparent 60%),
+      radial-gradient(900px 500px at -5% 110%, rgba(92,200,160,.08), transparent 55%),
+      linear-gradient(180deg, var(--bg2), var(--bg)); }
+  ::selection { background:var(--accent); color:var(--ink); }
+
+  /* top bar */
+  .topbar { display:flex; align-items:center; gap:16px; padding:16px 26px;
+    border-bottom:1px solid var(--line); backdrop-filter:blur(6px); }
+  .brand { display:flex; align-items:center; gap:10px; font-size:17px; font-weight:800;
+    letter-spacing:-.01em; }
+  .brand b { color:var(--accent); font-weight:800; }
+  .brand .dot { width:11px; height:11px; border-radius:50%; background:var(--accent);
+    box-shadow:0 0 14px 2px rgba(247,136,154,.7); }
+  .tagline { color:var(--muted); font-size:12.5px; }
+
+  .wrap { display:grid; grid-template-columns:1fr 392px; gap:0; height:calc(100vh - 65px); }
+  .left { padding:22px 26px; overflow:auto; }
+  .right { border-left:1px solid var(--line); padding:22px 24px; overflow:auto;
+    background:linear-gradient(180deg, rgba(22,44,33,.6), rgba(15,31,23,.4)); }
+
+  /* search bar */
+  .searchbar { display:flex; flex-wrap:wrap; gap:10px; align-items:center;
+    padding:10px; border:1px solid var(--line); background:rgba(18,37,28,.6);
+    border-radius:16px; margin-bottom:16px; }
+  .field { display:flex; align-items:center; gap:8px; flex:2; min-width:220px;
+    background:#0c1812; border:1px solid var(--line); border-radius:11px; padding:0 12px; }
+  .field svg { flex:none; opacity:.6; }
+  .field input { flex:1; border:0; background:transparent; color:var(--fg);
+    padding:11px 0; font:inherit; }
+  .field input:focus { outline:none; }
+  .field:focus-within { border-color:var(--accent); }
+  input.color { width:120px; background:#0c1812; border:1px solid var(--line);
+    border-radius:11px; padding:11px 12px; color:var(--fg); font:inherit; }
+
+  .chip { border:1px solid var(--line2); background:#102018; color:var(--fg);
+    border-radius:999px; padding:9px 15px; font-size:12.5px; font-weight:600;
+    cursor:pointer; transition:.14s; }
+  .chip:hover { border-color:var(--mint); }
+  .chip[aria-pressed="true"] { background:var(--mint); color:#06291f; border-color:transparent;
+    box-shadow:0 0 14px rgba(92,200,160,.35); }
+  .btn { border:1px solid var(--line2); background:#16291f; color:var(--fg);
+    border-radius:11px; padding:11px 16px; font:inherit; font-weight:700; cursor:pointer;
+    transition:.14s; }
+  .btn:hover { border-color:var(--fg); }
+  .btn.primary { background:linear-gradient(180deg,var(--accent-2),var(--accent));
+    color:var(--ink); border:0; box-shadow:0 6px 20px rgba(247,136,154,.3); }
+  .btn.primary:hover { filter:brightness(1.05); }
+  .btn.ghost { background:transparent; }
+
+  .count { color:var(--muted); font-size:12.5px; margin:2px 2px 14px; }
+
+  /* result grid */
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(176px,1fr)); gap:14px; }
+  .card { border:1px solid var(--line); border-radius:var(--r); overflow:hidden;
+    background:var(--panel); cursor:pointer; transition:.16s; position:relative;
+    padding:0; text-align:left; width:100%; color:inherit; }
+  .card:hover { transform:translateY(-3px); border-color:var(--accent);
+    box-shadow:var(--shadow); }
+  .card.sel { border-color:var(--accent); box-shadow:0 0 0 2px var(--accent), var(--shadow); }
+  .card img { width:100%; aspect-ratio:1; object-fit:cover; display:block; background:#0c1812; }
+  .card .pal { display:flex; height:6px; }
+  .card .pal i { flex:1; }
+  .card .meta { padding:9px 11px; font-size:11.5px; color:var(--muted);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .card .tpl { position:absolute; top:9px; left:9px; background:var(--mint); color:#06291f;
+    font-size:10.5px; font-weight:800; padding:3px 8px; border-radius:7px;
+    box-shadow:0 2px 8px rgba(0,0,0,.3); }
+  .empty { color:var(--muted); padding:40px 10px; text-align:center; }
+
+  /* composer (right) */
+  .right h2 { font-size:16px; margin:0 0 2px; letter-spacing:-.01em; }
+  .selinfo { color:var(--muted); font-size:12.5px; margin:0 0 14px;
+    min-height:18px; line-height:1.4; }
+  label { font-size:11.5px; color:var(--muted); display:block; margin:13px 0 5px;
+    font-weight:600; letter-spacing:.01em; }
+  textarea, select, input.txt { width:100%; color:var(--fg); background:#0c1812;
+    border:1px solid var(--line); border-radius:11px; padding:10px 12px; font:inherit;
+    resize:vertical; }
+  textarea:focus, select:focus, input.txt:focus, .color:focus { outline:none;
+    border-color:var(--accent); }
+  .row { display:flex; gap:10px; }
+  .row > * { flex:1; }
+
+  .canvas { margin-top:14px; border-radius:var(--r); padding:12px;
+    background:repeating-conic-gradient(#0c1812 0% 25%, #0e1d15 0% 50%) 0/22px 22px;
+    border:1px solid var(--line); box-shadow:inset 0 0 30px rgba(0,0,0,.4); }
+  #preview { width:100%; border-radius:9px; display:block; box-shadow:var(--shadow); }
+  #preview:not([src]) { display:none; }
+  .canvas .ph { color:var(--muted); text-align:center; padding:48px 10px; font-size:12.5px; }
+
+  .vote { display:none; margin-top:12px; align-items:center; gap:9px; }
+  .vote .lbl { color:var(--muted); font-size:12.5px; }
+  .vote button { border:1px solid var(--line2); background:#102018; color:var(--fg);
+    border-radius:10px; padding:7px 13px; font-size:15px; cursor:pointer; transition:.14s; }
+  .vote button:hover { border-color:var(--mint); transform:translateY(-1px); }
+  .vote .ack { color:var(--mint); font-size:12px; font-weight:600; }
+
   a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible,
-  textarea:focus-visible, [role="button"]:focus-visible {
-    outline:2px solid var(--accent); outline-offset:2px; }
-  /* screen-reader-only labels (1.3.1 / 3.3.2) */
+  textarea:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
   .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px;
     overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
-  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr));
-          gap:10px; }
-  .card { border:1px solid var(--line); border-radius:10px; overflow:hidden;
-          background:#0f131a; cursor:pointer; transition:.12s; position:relative;
-          padding:0; text-align:left; width:100%; }
-  .card:hover { border-color:var(--accent); transform:translateY(-2px); }
-  .card.sel { outline:2px solid var(--accent); }
-  .card img { width:100%; aspect-ratio:1; object-fit:cover; display:block; }
-  .card .meta { padding:6px 8px; font-size:11px; color:var(--muted);
-                white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .card .tpl { position:absolute; top:6px; left:6px; background:var(--accent2);
-               color:#06291f; font-size:10px; font-weight:700; padding:2px 6px;
-               border-radius:6px; }
-  .card .pal { display:flex; height:5px; }
-  .card .pal i { flex:1; }
-  label { font-size:12px; color:var(--muted); display:block; margin:10px 0 4px; }
-  textarea { width:100%; resize:vertical; }
-  .row { display:flex; gap:8px; }
-  .row > * { flex:1; }
-  #preview { width:100%; border-radius:12px; border:1px solid var(--line);
-             margin-top:10px; background:#0f131a; }
-  .hint { color:var(--muted); font-size:12px; }
-  .count { color:var(--muted); font-size:12px; margin:0 0 10px; }
+  ::-webkit-scrollbar { width:10px; height:10px; }
+  ::-webkit-scrollbar-thumb { background:#1d3a2e; border-radius:10px; }
 </style>
 </head>
 <body>
-<header>
-  <h1>cardnews-cv</h1>
-  <span class="sub">레퍼런스 라이브러리 검색 → 선택 → 자동 채움 → 카드 생성</span>
+<header class="topbar">
+  <div class="brand"><span class="dot"></span>카드뉴스 <b>스튜디오</b></div>
+  <span class="tagline">레퍼런스 검색 → 선택 → 자동 채움 → 카드 생성</span>
 </header>
+
 <main class="wrap">
   <section class="left" aria-label="레퍼런스 검색 및 결과">
     <h2 class="sr-only">레퍼런스 검색</h2>
-    <div class="controls" role="search">
+    <div class="searchbar" role="search">
       <label for="q" class="sr-only">주제 검색</label>
-      <input id="q" placeholder="주제 검색 (예: smart farm, hanok, support)" style="flex:2;min-width:220px">
+      <div class="field">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        <input id="q" placeholder="주제 검색 (예: smart farm, hanok, support)">
+      </div>
       <label for="color" class="sr-only">색상 (hex 코드)</label>
-      <input id="color" placeholder="#15402b" style="width:110px">
+      <input id="color" class="color" placeholder="#15402b">
       <button type="button" class="chip" data-f="dark" aria-pressed="false">다크</button>
       <button type="button" class="chip" data-f="cover" aria-pressed="false">표지</button>
       <button type="button" class="chip" data-f="tpl" aria-pressed="false">레이아웃만</button>
-      <button type="button" onclick="search()">검색</button>
-      <button type="button" onclick="reset()">초기화</button>
+      <button type="button" class="btn primary" onclick="search()">검색</button>
+      <button type="button" class="btn ghost" onclick="reset()">초기화</button>
     </div>
     <p class="count" id="count" aria-live="polite"></p>
     <div class="grid" id="grid" role="list" aria-label="검색된 레퍼런스"></div>
   </section>
 
-  <section class="right" aria-label="카드 생성">
+  <aside class="right" aria-label="카드 생성">
     <h2>카드 생성</h2>
-    <p class="hint" id="selinfo" aria-live="polite">레퍼런스를 선택하면 톤/테마가 자동 적용됩니다.</p>
+    <p class="selinfo" id="selinfo" aria-live="polite">레퍼런스를 선택하면 톤·레이아웃이 자동 적용됩니다.</p>
     <label for="title">제목 (줄바꿈 = Enter)</label>
     <textarea id="title" rows="2">스마트팜으로\n바뀌는 농업</textarea>
     <label for="subtitle">부제 (*키워드* = 강조)</label>
@@ -99,18 +168,33 @@
           <option>forest</option><option>midnight</option><option>coral</option>
           <option>sky</option><option>mint</option><option>mono</option>
         </select></div>
-      <div><label for="brand">브랜드</label><input id="brand" value="AGRI"></div>
+      <div><label for="brand">브랜드</label><input id="brand" class="txt" value="AGRI"></div>
     </div>
-    <button type="button" class="primary" style="width:100%;margin-top:14px" onclick="generate()">생성</button>
-    <img id="preview" alt="생성된 카드 미리보기 (아직 없음)">
-  </section>
+    <button type="button" class="btn primary" style="width:100%;margin-top:16px" onclick="generate()">카드 생성</button>
+    <div class="canvas">
+      <div class="ph" id="ph">생성하면 여기에 카드가 나타납니다</div>
+      <img id="preview" alt="">
+    </div>
+    <div class="vote" id="rate">
+      <span class="lbl">이 결과 평가</span>
+      <button type="button" onclick="rate(1)" aria-label="좋아요">👍</button>
+      <button type="button" onclick="rate(-1)" aria-label="별로예요">👎</button>
+      <span class="ack" id="rateack" aria-live="polite"></span>
+    </div>
+  </aside>
 </main>
 
 <script>
 const F = { dark:false, cover:false, tpl:false };
 let selected = null;
+let lastCtx = null;
+let FBSUM = {};
 
-document.querySelectorAll('.chip').forEach(c => c.onclick = () => {
+fetch('/api/feedback/summary').then(r => r.json())
+  .then(d => { FBSUM = d.net_by_ref || {}; }).catch(() => {});
+
+// only the FILTER chips (data-f) get the toggle handler — not the vote buttons
+document.querySelectorAll('.chip[data-f]').forEach(c => c.onclick = () => {
   F[c.dataset.f] = !F[c.dataset.f];
   c.setAttribute('aria-pressed', String(F[c.dataset.f]));
   search();
@@ -130,20 +214,26 @@ function qs() {
 }
 
 async function search() {
+  const g = document.getElementById('grid');
+  g.setAttribute('aria-busy', 'true');
   const r = await fetch('/api/search?' + qs());
-  render((await r.json()));
+  render(await r.json());
 }
 function reset() {
   document.getElementById('q').value = '';
   document.getElementById('color').value = '';
   F.dark = F.cover = F.tpl = false;
-  document.querySelectorAll('.chip').forEach(c => c.setAttribute('aria-pressed', 'false'));
+  document.querySelectorAll('.chip[data-f]').forEach(c => c.setAttribute('aria-pressed', 'false'));
   search();
 }
 
 function render(data) {
-  document.getElementById('count').textContent = data.count + ' 레퍼런스';
+  document.getElementById('count').textContent = data.count + '개 레퍼런스';
   const g = document.getElementById('grid'); g.innerHTML = '';
+  if (!data.results.length) {
+    g.innerHTML = '<div class="empty">결과가 없어요. 검색어나 필터를 바꿔보세요.</div>';
+    return;
+  }
   data.results.forEach(r => {
     const isSel = selected && selected.id === r.id;
     const el = document.createElement('div');
@@ -156,10 +246,12 @@ function render(data) {
     const pal = (r.palette || []).slice(0,5)
       .map(c => `<i style="background:rgb(${c[0]},${c[1]},${c[2]})"></i>`).join('');
     const badge = r.has_template ? '<div class="tpl">레이아웃</div>' : '';
+    const net = FBSUM[r.id] || 0;
+    const votes = net > 0 ? ` · 👍${net}` : (net < 0 ? ` · 👎${-net}` : '');
     el.innerHTML =
       `<img loading="lazy" alt="레퍼런스 미리보기: ${r.deck}" src="/api/reference/${encodeURIComponent(r.id)}?w=320">${badge}
        <div class="pal" aria-hidden="true">${pal}</div>
-       <div class="meta">${r.theme} · ${r.dark?'dark':'light'} · ${r.deck.slice(0,22)}</div>`;
+       <div class="meta">${r.theme} · ${r.dark?'dark':'light'}${votes} · ${r.deck.slice(0,16)}</div>`;
     el.onclick = () => select(r, el);
     el.onkeydown = e => {
       if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); select(r, el); }
@@ -176,8 +268,8 @@ function select(r, el) {
   el.classList.add('sel'); el.setAttribute('aria-pressed', 'true');
   document.getElementById('theme').value = r.theme;
   document.getElementById('selinfo').textContent = r.has_template
-    ? `선택: ${r.id} → 이 레퍼런스의 실제 레이아웃을 복사해 채웁니다`
-    : `선택: ${r.id} → 템플릿 없음, 테마 "${r.theme}"로 생성`;
+    ? `선택: ${r.deck.slice(0,28)} → 이 레퍼런스의 실제 레이아웃을 복사합니다`
+    : `선택: ${r.deck.slice(0,28)} → 템플릿 없음, 테마 "${r.theme}"로 생성`;
 }
 
 async function generate() {
@@ -188,10 +280,10 @@ async function generate() {
   const brand = document.getElementById('brand').value || null;
 
   let url, body;
-  if (selected) {                 // copy the chosen reference's layout (or themed fallback)
+  if (selected) {
     url = '/api/generate_from_ref';
     body = { ref_id: selected.id, title, subtitle, checklist, brand, size: 1080 };
-  } else {                        // no selection -> manual theme
+  } else {
     url = '/api/generate';
     body = { title, subtitle, checklist, theme: document.getElementById('theme').value, brand, size: 1080 };
   }
@@ -202,8 +294,26 @@ async function generate() {
   const img = document.getElementById('preview');
   img.src = URL.createObjectURL(await r.blob());
   img.alt = `생성된 카드: ${title.replace(/\n/g, ' ')}`;
+  document.getElementById('ph').style.display = 'none';
   if (mode) document.getElementById('selinfo').textContent =
     `생성 완료 (${mode === 'template' ? '레이아웃 복사' : '테마 폴백'})`;
+
+  lastCtx = { ref_id: selected ? selected.id : null,
+              query: document.getElementById('q').value.trim() || null, mode, title };
+  document.getElementById('rate').style.display = lastCtx.ref_id ? 'flex' : 'none';
+  document.getElementById('rateack').textContent = '';
+}
+
+async function rate(v) {
+  if (!lastCtx || !lastCtx.ref_id) return;
+  const r = await fetch('/api/feedback', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ ref_id:lastCtx.ref_id, rating:v, query:lastCtx.query,
+                           mode:lastCtx.mode, title:lastCtx.title })});
+  if (!r.ok) return;
+  const d = await r.json();
+  FBSUM[lastCtx.ref_id] = d.net;
+  document.getElementById('rateack').textContent = (v > 0 ? '좋아요' : '별로예요') + ' 반영됨 ✓';
 }
 
 search();
