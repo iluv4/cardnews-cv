@@ -43,6 +43,13 @@ TEST_FRAC = 0.15           # share of NEW images held out as the common test set
 SEED = 0
 EXTS = (".png", ".jpg", ".jpeg")
 
+# (2) High-recall small-text detection: upscale the canvas and lower the text
+# threshold so EasyOCR also picks up tiny body lines (the label ceiling).
+OCR_PARAMS = dict(canvas_size=2560, mag_ratio=2.0, low_text=0.3, text_threshold=0.6)
+# (3) Merge nearby text lines into BLOCKS (title block / body block) — for layout
+# generation we want element *regions*, not every single tiny line.
+MERGE_BLOCKS = os.getenv("MERGE_BLOCKS", "1") == "1"
+
 _reader = None
 
 
@@ -51,6 +58,42 @@ def reader():
     if _reader is None:
         _reader = easyocr.Reader(["ko", "en"], gpu=True)
     return _reader
+
+
+def merge_rects(rects, gap_v=0.7, gap_h=0.5):
+    """Union rects whose boxes (expanded by a fraction of their own height) touch.
+    Groups paragraph lines into one block. rects: list of (x0,y0,x1,y1)."""
+    n = len(rects)
+    if n <= 1:
+        return [tuple(r) for r in rects]
+    parent = list(range(n))
+
+    def find(a):
+        while parent[a] != a:
+            parent[a] = parent[parent[a]]
+            a = parent[a]
+        return a
+
+    def exp(r):
+        x0, y0, x1, y1 = r
+        h = max(1.0, y1 - y0)
+        return (x0 - gap_h * h, y0 - gap_v * h, x1 + gap_h * h, y1 + gap_v * h)
+
+    er = [exp(r) for r in rects]
+    for i in range(n):
+        for j in range(i + 1, n):
+            a, b = er[i], er[j]
+            if a[0] <= b[2] and b[0] <= a[2] and a[1] <= b[3] and b[1] <= a[3]:
+                parent[find(i)] = find(j)
+
+    groups = {}
+    for i, r in enumerate(rects):
+        groups.setdefault(find(i), []).append(r)
+    out = []
+    for g in groups.values():
+        out.append((min(r[0] for r in g), min(r[1] for r in g),
+                    max(r[2] for r in g), max(r[3] for r in g)))
+    return out
 
 
 def list_dir(d):
@@ -63,8 +106,9 @@ def list_dir(d):
 
 def label_lines(img):
     W, H = img.size
-    results = reader().readtext(np.array(img))
-    lines, nt, nb = [], 0, 0
+    results = reader().readtext(np.array(img), **OCR_PARAMS)
+    # collect raw line boxes, split into title (tall) / body (small) by height
+    raw = {0: [], 1: []}
     for bbox, _text, conf in results:
         if conf < CONF:
             continue
@@ -72,10 +116,19 @@ def label_lines(img):
         ys = [pt[1] for pt in bbox]
         x0, x1 = max(0, min(xs)), min(W, max(xs))
         y0, y1 = max(0, min(ys)), min(H, max(ys))
-        bw, bh = x1 - x0, y1 - y0
-        if bw <= 1 or bh <= 1:
+        if x1 - x0 <= 1 or y1 - y0 <= 1:
             continue
-        cls = 0 if (bh / H) >= TITLE_H_RATIO else 1
+        cls = 0 if (y1 - y0) / H >= TITLE_H_RATIO else 1
+        raw[cls].append((x0, y0, x1, y1))
+
+    boxes = []
+    for cls in (0, 1):
+        rects = merge_rects(raw[cls]) if MERGE_BLOCKS else raw[cls]
+        boxes += [(cls, *r) for r in rects]
+
+    lines, nt, nb = [], 0, 0
+    for cls, x0, y0, x1, y1 in boxes:
+        bw, bh = x1 - x0, y1 - y0
         cx, cy = (x0 + x1) / 2 / W, (y0 + y1) / 2 / H
         lines.append(f"{cls} {cx:.6f} {cy:.6f} {bw / W:.6f} {bh / H:.6f}")
         nt += cls == 0

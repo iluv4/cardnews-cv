@@ -12,3 +12,5 @@ yolov8*.pt
 gen_output/
 Dataset/
 data_cmp/
+
+service/out/

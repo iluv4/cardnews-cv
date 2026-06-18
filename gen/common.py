@@ -24,19 +24,28 @@ def list_images(*dirs):
     return sorted(paths)
 
 
-def find_korean_font(size=34):
-    """Return a PIL ImageFont with Korean glyph coverage, trying common paths."""
+FONT_DIR = os.path.join(ROOT, "assets", "fonts")
+# Malgun weights for the bold/regular fallback when Pretendard isn't bundled.
+_MALGUN = {"Bold": r"C:\Windows\Fonts\malgunbd.ttf", "Regular": r"C:\Windows\Fonts\malgun.ttf"}
+
+
+def find_korean_font(size=34, weight="Regular"):
+    """PIL ImageFont with Korean glyph coverage. Prefers the bundled designer font
+    (Pretendard); falls back to Malgun / Noto / Nanum. weight in
+    {Bold, SemiBold, Medium, Regular}."""
     from PIL import ImageFont
     candidates = [
-        r"C:\Windows\Fonts\malgun.ttf",            # Windows: Malgun Gothic
-        r"C:\Windows\Fonts\NanumGothic.ttf",
-        "/usr/share/fonts/truetype/nanum/NanumGothic.ttf",       # Linux (fonts-nanum)
+        os.path.join(FONT_DIR, f"Pretendard-{weight}.ttf"),
+        os.path.join(FONT_DIR, "Pretendard-Regular.ttf"),
+        _MALGUN.get(weight, _MALGUN["Regular"]),
+        r"C:\Windows\Fonts\malgun.ttf",
+        "/usr/share/fonts/truetype/nanum/NanumGothicBold.ttf" if weight == "Bold"
+        else "/usr/share/fonts/truetype/nanum/NanumGothic.ttf",
         "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
-        "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",       # last resort (no Hangul)
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
     ]
     for c in candidates:
-        if os.path.exists(c):
+        if c and os.path.exists(c):
             try:
                 return ImageFont.truetype(c, size)
             except Exception:
@@ -59,11 +68,12 @@ def load_yolo(weights=None):
     return YOLO(weights)
 
 
-def detect_boxes(model, pil_canvas, conf=0.25, max_elem=8):
+def detect_boxes(model, pil_canvas, conf=0.25, max_elem=8, imgsz=1280):
     """Detect on a 513x750 RGB canvas. Returns list of (cls_elem, x0,y0,x1,y1)
-    in canvas pixels. title/body -> text(1); kept top-`max_elem` by confidence."""
+    in canvas pixels. title/body -> text(1); kept top-`max_elem` by confidence.
+    imgsz=1280 (high-res inference) so small body text/blocks are still found."""
     import numpy as np
-    res = model.predict(np.array(pil_canvas), conf=conf, verbose=False)[0]
+    res = model.predict(np.array(pil_canvas), conf=conf, imgsz=imgsz, verbose=False)[0]
     out = []
     for b in res.boxes:
         x0, y0, x1, y1 = [float(v) for v in b.xyxy[0].tolist()]
