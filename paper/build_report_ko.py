@@ -408,7 +408,21 @@ def build(authors_line="박준현 · 한현민 · 이승주",
         "스토리텔링</b>(스니치아카이브), <b>호기심 유발형</b>(철님의보석함)의 뚜렷한 전개 "
         "전략을 보였다. 우리는 이로부터 레이아웃 구조·텍스트 밀도·정보 배치 순서·시선 유도 "
         "방식 등의 속성을 추출하여 RAG 검색 데이터베이스로 색인하고, 생성 시 업종·목적에 "
-        "맞는 레퍼런스를 검색해 템플릿 엔진(4.2)의 원형 선택에 활용한다.", body))
+        "맞는 레퍼런스를 검색해 템플릿 엔진(4.2)의 원형 선택에 활용한다. 레퍼런스 분석 "
+        "요약은 다음 페이지 [표 3]과 같다.", body))
+
+    # --- [Table 3] reference-account analysis, full-width page (next to 4.4) ---
+    s.append(NextPageTemplate("wide"))
+    s.append(PageBreak())
+    s.append(P("4.4 (계속) 레퍼런스 계정 분석 요약", h2))
+    s.append(wide_figure(
+        "fig_reference_accounts.jpg",
+        "[표 3] 카드뉴스 레퍼런스 계정 분석 요약. 세 계정(패션플랫폼서울 · 스니치아카이브 · "
+        "철님의보석함)의 핵심 전략 · 카드뉴스 구성 구조 · 주요 특징을 비교했다. 상기 분석 "
+        "결과를 바탕으로 레이아웃 구조 · 텍스트 밀도 · 정보 배치 순서 · 시선 유도 방식 등의 "
+        "속성을 추출하여 디자인 RAG 데이터베이스에 활용한다."))
+    s.append(NextPageTemplate("later"))
+    s.append(PageBreak())
 
     # ===== 5. Sequential analysis =====
     s.append(P("5. 덱의 시계열 분석", h1))
@@ -514,21 +528,6 @@ def build(authors_line="박준현 · 한현민 · 이승주",
     ]
     for r in refs:
         s.append(P(r, ref))
-
-    # ===== Appendix: reference-account analysis table (full-width page) =====
-    s.append(NextPageTemplate("wide"))
-    s.append(PageBreak())
-    s.append(P("부록 A. 레퍼런스 계정 분석 (디자인 RAG)", h1))
-    s.append(P(
-        "아래 [표 3]은 디자인 RAG 데이터베이스 구축을 위해 분석한 세 카드뉴스 계정"
-        "(패션플랫폼서울 · 스니치아카이브 · 철님의보석함)의 핵심 전략, 카드뉴스 구성 구조, "
-        "주요 특징을 요약한 것이다. 각 계정의 레이아웃 구조 · 텍스트 밀도 · 정보 배치 순서 · "
-        "시선 유도 방식을 속성으로 추출하여 검색 데이터베이스에 활용한다.", body0))
-    s.append(wide_figure(
-        "fig_reference_accounts.jpg",
-        "[표 3] 카드뉴스 레퍼런스 계정 분석 요약. 상기 분석 결과를 바탕으로 레이아웃 구조 · "
-        "텍스트 밀도 · 정보 배치 순서 · 시선 유도 방식 등의 속성을 추출하여 디자인 RAG "
-        "데이터베이스에 활용한다."))
 
     doc.build(s)
 
