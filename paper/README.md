@@ -1,14 +1,20 @@
 # paper/ — report & manuscript
 
-Two ready-to-read PDFs are generated locally (no LaTeX needed):
+The **final manuscript** is the LaTeX-compiled PDF:
 
 | File | What it is | Rebuild |
 |------|------------|---------|
-| `cardnews_paper.pdf` | English CVPR-style preview of the manuscript (figures + ablation table + references) | `py -3 paper/build_pdf.py` |
+| `main.pdf` | **Final compiled paper** — two-column CVPR-style PDF from `main.tex` + `refs.bib` + `figures/` (4 pages, embedded fonts) | `pdflatex main && bibtex main && pdflatex main && pdflatex main` |
+
+Two reportlab previews are also generated locally (no LaTeX needed):
+
+| File | What it is | Rebuild |
+|------|------------|---------|
+| `cardnews_paper.pdf` | English single-column preview of the manuscript (figures + ablation table + references) | `py -3 paper/build_pdf.py` |
 | `cardnews_report_ko.pdf` | Korean presentation report | `py -3 paper/build_report_ko.py` |
 
-These are **previews** built with reportlab. The actual conference submission
-artifact is the LaTeX source below.
+`cardnews_paper.pdf` is a reportlab **preview**; `main.pdf` is the true
+two-column compile and the conference submission artifact (source: `main.tex`).
 
 ## Submitting to CVPR (or another venue) via Overleaf
 1. Create a new Overleaf project and upload: `main.tex`, `refs.bib`, and the

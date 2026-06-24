@@ -22,6 +22,7 @@ from reportlab.pdfbase.pdfmetrics import registerFontFamily
 from reportlab.platypus import (
     BaseDocTemplate, PageTemplate, Frame, Paragraph, Spacer, Image,
     Table, TableStyle, FrameBreak, NextPageTemplate, KeepTogether, CondPageBreak,
+    PageBreak,
 )
 from reportlab.lib.utils import ImageReader
 
@@ -30,12 +31,28 @@ FIG = os.path.join(HERE, "figures")
 OUT = os.path.join(HERE, "cardnews_report_ko.pdf")
 
 # ----------------------------------------------------------------------------
-# Fonts (Malgun Gothic)
+# Fonts -- Malgun Gothic on Windows, else bundled Pretendard (Linux/CI).
+# The family is registered under the name "Malgun" either way so the rest of
+# the builder is font-agnostic.
 # ----------------------------------------------------------------------------
-pdfmetrics.registerFont(TTFont("Malgun", r"C:\Windows\Fonts\malgun.ttf"))
-pdfmetrics.registerFont(TTFont("MalgunBd", r"C:\Windows\Fonts\malgunbd.ttf"))
-registerFontFamily("Malgun", normal="Malgun", bold="MalgunBd",
-                   italic="Malgun", boldItalic="MalgunBd")
+def _register_korean_fonts():
+    _assets = os.path.join(HERE, "..", "assets", "fonts")
+    candidates = [
+        (r"C:\Windows\Fonts\malgun.ttf", r"C:\Windows\Fonts\malgunbd.ttf"),
+        (os.path.join(_assets, "Pretendard-Regular.ttf"),
+         os.path.join(_assets, "Pretendard-Bold.ttf")),
+    ]
+    for reg, bold in candidates:
+        if os.path.exists(reg) and os.path.exists(bold):
+            pdfmetrics.registerFont(TTFont("Malgun", reg))
+            pdfmetrics.registerFont(TTFont("MalgunBd", bold))
+            registerFontFamily("Malgun", normal="Malgun", bold="MalgunBd",
+                               italic="Malgun", boldItalic="MalgunBd")
+            return
+    raise RuntimeError("No Korean font found (Malgun Gothic or bundled Pretendard).")
+
+
+_register_korean_fonts()
 
 # ----------------------------------------------------------------------------
 # Page geometry  (A4, 2-column)
@@ -105,6 +122,21 @@ def figure(fname, cap, max_h=None):
     img = Image(full, width=w, height=h)
     img.hAlign = "CENTER"
     return KeepTogether([Spacer(1, 2), img, P(cap, caption)])
+
+
+def wide_figure(fname, cap):
+    """Full-page-width figure (for the landscape reference table)."""
+    full = os.path.join(FIG, fname)
+    iw, ih = ImageReader(full).getSize()
+    w = CONTENT_W
+    h = ih * (w / float(iw))
+    max_h = PH - TM - BM - 60       # leave room for heading + caption
+    if h > max_h:
+        h = max_h
+        w = iw * (h / float(ih))
+    img = Image(full, width=w, height=h)
+    img.hAlign = "CENTER"
+    return KeepTogether([Spacer(1, 4), img, P(cap, caption)])
 
 
 def ablation_table():
@@ -191,12 +223,14 @@ def footer(canvas, doc):
     canvas.restoreState()
 
 
-def build():
-    doc = BaseDocTemplate(OUT, pagesize=A4,
+def build(authors_line="박준현 · 한현민 · 이승주",
+          course_line="컴퓨터비전 기말 프로젝트",
+          out_path=OUT):
+    doc = BaseDocTemplate(out_path, pagesize=A4,
                           leftMargin=LM, rightMargin=RM,
                           topMargin=TM, bottomMargin=BM,
                           title="검출 기반 레이아웃 분석과 템플릿 생성",
-                          author="이승주")
+                          author=authors_line.replace(" · ", ", "))
 
     # --- page 1: full-width header frame + two columns below ---
     fh = Frame(LM, PH - TM - HEADER_H, CONTENT_W, HEADER_H, id="header",
@@ -215,9 +249,14 @@ def build():
     f2b = Frame(LM + COL_W + GUT, BM, COL_W, col_h, id="c2b",
                 leftPadding=0, rightPadding=0, topPadding=0, bottomPadding=0)
 
+    # --- full-width single-column page (landscape reference table) ---
+    fw = Frame(LM, BM, CONTENT_W, col_h, id="wide",
+               leftPadding=0, rightPadding=0, topPadding=0, bottomPadding=0)
+
     doc.addPageTemplates([
         PageTemplate(id="first", frames=[fh, f1a, f1b], onPage=footer),
         PageTemplate(id="later", frames=[f2a, f2b], onPage=footer),
+        PageTemplate(id="wide", frames=[fw], onPage=footer),
     ])
 
     s = []  # story
@@ -225,8 +264,7 @@ def build():
     # ===== Title block (header frame) =====
     s.append(P("검출 기반 레이아웃 분석과 템플릿 생성:<br/>"
                "한국어 카드뉴스와 다중 페이지 덱의 시계열 분석", title))
-    s.append(P("컴퓨터비전 · 시계열 기말 프로젝트<br/>"
-               "202321131 이승주", meta))
+    s.append(P(course_line + "<br/>" + authors_line, meta))
 
     # ===== Abstract (full width, at top) =====
     s.append(P("초록", abhead))
@@ -355,6 +393,29 @@ def build():
                "스크림이 대비를 보장하고 잔여 텍스처를 덮는다. 타이포그래피는 제목에 Pretendard Bold, 본문에 "
                "Regular을 쓰고 고정된 간격 체계와 강조 규칙을 따른다.", body0))
 
+    s.append(P("4.4 디자인 RAG 엔진과 레퍼런스 분석", h2))
+    s.append(P(
+        "소상공인의 다양한 업종(예: 카페, 식당, 공방 등)과 마케팅 목적에 부합하는 일관된 "
+        "브랜드 톤을 유지하기 위해 디자인 RAG(Retrieval-Augmented Generation) 엔진을 "
+        "구축하였다. 본 연구에서는 디자인 RAG 데이터베이스 구축을 위해 실제 인스타그램에서 "
+        "높은 사용자 반응을 기록한 카드뉴스 계정을 분석하였다. 분석 대상은 "
+        "패션플랫폼서울(Fashion Platform Seoul), 스니치아카이브(Snitch Archive), "
+        "철님의보석함(Cheol&#8217;s Jewelry Box) 계정이며, 각 계정의 콘텐츠 전개 방식과 "
+        "디자인 구조를 비교 분석하여 레퍼런스 데이터셋을 구축하였다. [표 3]은 레퍼런스 분석 "
+        "결과를 요약한 것이다.", body0))
+    s.append(P(
+        "분석 결과, 세 계정은 각각 <b>해결책 제시형</b>(패션플랫폼서울), <b>발견형 "
+        "스토리텔링</b>(스니치아카이브), <b>호기심 유발형</b>(철님의보석함)의 뚜렷한 전개 "
+        "전략을 보였다. 우리는 이로부터 레이아웃 구조·텍스트 밀도·정보 배치 순서·시선 유도 "
+        "방식 등의 속성을 추출하여 RAG 검색 데이터베이스로 색인하고, 생성 시 업종·목적에 "
+        "맞는 레퍼런스를 검색해 템플릿 엔진(4.2)의 원형 선택에 활용한다. 레퍼런스 분석 "
+        "요약은 [표 3]과 같다.", body))
+    s.append(figure(
+        "fig_reference_accounts.jpg",
+        "[표 3] 카드뉴스 레퍼런스 계정 분석 요약. 세 계정(패션플랫폼서울 · 스니치아카이브 · "
+        "철님의보석함)의 핵심 전략 · 구성 구조 · 주요 특징을 비교했다. 추출한 속성을 디자인 "
+        "RAG 데이터베이스에 활용한다."))
+
     # ===== 5. Sequential analysis =====
     s.append(P("5. 덱의 시계열 분석", h1))
     s.append(P("카드뉴스 덱은 순서가 있는 페이지 시퀀스다. 우리는 페이지 인덱스를 이산 시간축으로 보고 "
@@ -464,6 +525,12 @@ def build():
 
 
 if __name__ == "__main__":
-    build()
-    sz = os.path.getsize(OUT)
-    print("Wrote %s (%.1f KB)" % (OUT, sz / 1024.0))
+    targets = [
+        ("박준현 · 한현민 · 이승주", "컴퓨터비전 기말 프로젝트",
+         os.path.join(HERE, "cardnews_report_ko_cv.pdf")),
+        ("태영준 · 한현민 · 이승주", "시계열 데이터 분석 기말 프로젝트",
+         os.path.join(HERE, "cardnews_report_ko_ts.pdf")),
+    ]
+    for authors, course, out in targets:
+        build(authors, course, out)
+        print("Wrote %s (%.1f KB)" % (out, os.path.getsize(out) / 1024.0))
